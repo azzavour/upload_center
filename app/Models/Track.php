@@ -17,7 +17,6 @@ class Track extends Model
         'track_price',
         'collection_price',
         'country',
-        'currency',
         'upload_history_id'
     ];
 
