@@ -6,6 +6,7 @@ use App\Services\MappingService;
 use App\Services\ExcelFormatService;
 use App\Models\ExcelFormat;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class MappingController extends Controller
 {
@@ -39,14 +40,31 @@ class MappingController extends Controller
 
     public function store(Request $request)
     {
+        // Validasi dasar
         $request->validate([
             'excel_format_id' => 'required|exists:excel_formats,id',
-            'column_mapping' => 'required|json',
             'transformation_rules' => 'nullable|array'
         ]);
 
         try {
-            $columnMapping = json_decode($request->column_mapping, true);
+            // Ambil column mapping dari JSON yang dikirim via JavaScript
+            $columnMapping = [];
+            
+            if ($request->has('column_mapping') && is_string($request->column_mapping)) {
+                $columnMapping = json_decode($request->column_mapping, true);
+            }
+            
+            // Jika JSON decode gagal atau kosong, coba ambil dari form array
+            if (empty($columnMapping)) {
+                Log::warning('Column mapping JSON empty, trying form arrays');
+            }
+            
+            // Validasi column mapping tidak kosong
+            if (empty($columnMapping)) {
+                return redirect()->back()
+                    ->with('error', 'Column mapping tidak boleh kosong. Minimal isi satu mapping!')
+                    ->withInput();
+            }
             
             // Filter transformation rules yang kosong
             $transformationRules = [];
@@ -67,6 +85,7 @@ class MappingController extends Controller
             return redirect()->route('mapping.index')
                 ->with('success', 'Mapping berhasil dibuat! Mapping Index: ' . $mapping->mapping_index);
         } catch (\Exception $e) {
+            Log::error('Mapping creation error: ' . $e->getMessage());
             return redirect()->back()
                 ->with('error', 'Gagal membuat mapping: ' . $e->getMessage())
                 ->withInput();

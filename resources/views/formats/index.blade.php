@@ -3,85 +3,79 @@
 @section('title', 'Excel Formats')
 
 @section('content')
-<div class="bg-white shadow-sm rounded-lg">
-    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+<div class="card shadow-sm">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
         <div>
-            <h2 class="text-2xl font-bold text-gray-800">
-                <i class="fas fa-file-excel text-green-600 mr-2"></i>Format Excel Terdaftar
+            <h2 class="mb-0">
+                <i class="fas fa-file-excel text-success me-2"></i>Format Excel Terdaftar
             </h2>
-            <p class="text-gray-600 mt-1">Kelola format Excel yang dapat digunakan untuk upload</p>
+            <p class="text-muted mb-0 mt-2">Kelola format Excel yang dapat digunakan untuk upload</p>
         </div>
-        <a href="{{ route('formats.create') }}" 
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-            <i class="fas fa-plus mr-2"></i>
-            Tambah Format Baru
+        <a href="{{ route('formats.create') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Tambah Format Baru
         </a>
     </div>
 
-    <div class="p-6">
+    <div class="card-body">
         @if($formats->isEmpty())
-        <div class="text-center py-12">
-            <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
-            <p class="text-gray-500 text-lg">Belum ada format terdaftar</p>
-            <a href="{{ route('formats.create') }}" 
-                class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-                <i class="fas fa-plus mr-2"></i>
-                Tambah Format Pertama
+        <div class="text-center py-5">
+            <i class="fas fa-inbox text-muted" style="font-size: 4rem;"></i>
+            <p class="text-muted mt-3 mb-0">Belum ada format terdaftar</p>
+            <a href="{{ route('formats.create') }}" class="btn btn-primary mt-3">
+                <i class="fas fa-plus me-2"></i>Tambah Format Pertama
             </a>
         </div>
         @else
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="row">
             @foreach($formats as $format)
-            <div class="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center">
-                            <i class="fas fa-table text-blue-600 text-2xl mr-3"></i>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 border">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="fas fa-table text-primary fs-3 me-3"></i>
+                                    <div>
+                                        <h5 class="mb-0">{{ $format->format_name }}</h5>
+                                        <small class="text-muted">
+                                            <code class="bg-light px-2 py-1 rounded">{{ $format->format_code }}</code>
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                @if($format->description)
+                                <p class="text-muted small">{{ $format->description }}</p>
+                                @endif
+
+                                <div class="mb-3">
+                                    <strong class="small">
+                                        <i class="fas fa-columns me-1"></i>Kolom yang Diharapkan:
+                                    </strong>
+                                    <div class="mt-2">
+                                        @foreach($format->expected_columns as $column)
+                                        <span class="badge bg-primary me-1 mb-1">{{ $column }}</span>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <div class="small text-muted">
+                                    <i class="fas fa-database me-1"></i>
+                                    Target Table: <code class="bg-light px-2 py-1 rounded">{{ $format->target_table }}</code>
+                                </div>
+                            </div>
+                            
                             <div>
-                                <h3 class="text-lg font-semibold text-gray-900">
-                                    {{ $format->format_name }}
-                                </h3>
-                                <p class="text-sm text-gray-500">
-                                    <code class="bg-gray-100 px-2 py-1 rounded">{{ $format->format_code }}</code>
-                                </p>
-                            </div>
-                        </div>
-                        
-                        @if($format->description)
-                        <p class="mt-3 text-sm text-gray-600">
-                            {{ $format->description }}
-                        </p>
-                        @endif
-
-                        <div class="mt-4">
-                            <p class="text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-columns mr-1"></i>Kolom yang Diharapkan:
-                            </p>
-                            <div class="flex flex-wrap gap-2">
-                                @foreach($format->expected_columns as $column)
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    {{ $column }}
+                                @if($format->is_active)
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i>Aktif
                                 </span>
-                                @endforeach
+                                @else
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-times-circle me-1"></i>Nonaktif
+                                </span>
+                                @endif
                             </div>
                         </div>
-
-                        <div class="mt-4 flex items-center text-sm text-gray-500">
-                            <i class="fas fa-database mr-2"></i>
-                            Target Table: <code class="ml-1 bg-gray-100 px-2 py-1 rounded">{{ $format->target_table }}</code>
-                        </div>
-                    </div>
-                    
-                    <div>
-                        @if($format->is_active)
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <i class="fas fa-check-circle mr-1"></i>Aktif
-                        </span>
-                        @else
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            <i class="fas fa-times-circle mr-1"></i>Nonaktif
-                        </span>
-                        @endif
                     </div>
                 </div>
             </div>

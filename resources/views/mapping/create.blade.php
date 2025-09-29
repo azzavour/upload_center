@@ -3,74 +3,59 @@
 @section('title', 'Buat Data Mapping')
 
 @section('content')
-<div class="bg-white shadow-sm rounded-lg">
-    <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-2xl font-bold text-gray-800">
-            <i class="fas fa-project-diagram text-blue-600 mr-2"></i>Buat Data Mapping
+<div class="card shadow-sm">
+    <div class="card-header bg-white border-bottom">
+        <h2 class="mb-0">
+            <i class="fas fa-project-diagram text-primary me-2"></i>Buat Data Mapping
         </h2>
-        <p class="text-gray-600 mt-1">Mapping kolom Excel ke kolom database untuk format: <strong>{{ $format->format_name }}</strong></p>
+        <p class="text-muted mb-0 mt-2">Mapping kolom Excel ke kolom database untuk format: <strong>{{ $format->format_name }}</strong></p>
     </div>
 
-    <div class="p-6">
-        <form action="{{ route('mapping.store') }}" method="POST">
+    <div class="card-body">
+        @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        @endif
+
+        <form action="{{ route('mapping.store') }}" method="POST" id="mappingForm">
             @csrf
             <input type="hidden" name="excel_format_id" value="{{ $format->id }}">
 
-            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-info-circle text-blue-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-blue-700">
-                            Petakan kolom dari file Excel Anda ke kolom database yang sesuai. 
-                            <strong>1 Mapping = 1 Tabel Database ({{ $format->target_table }})</strong>
-                        </p>
-                    </div>
-                </div>
+            <!-- Info Box -->
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                Petakan kolom dari file Excel Anda ke kolom database yang sesuai. 
+                <strong>1 Mapping = 1 Tabel Database ({{ $format->target_table }})</strong>
             </div>
 
             @if(!empty($excelColumns))
-            <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-check-circle text-green-400"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-green-700 font-semibold mb-2">
-                            Kolom Excel yang Terdeteksi:
-                        </p>
-                        <div class="flex flex-wrap gap-2">
-                            @foreach($excelColumns as $col)
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                {{ $col }}
-                            </span>
-                            @endforeach
-                        </div>
-                    </div>
+            <!-- Excel Columns Detected -->
+            <div class="alert alert-success" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Kolom Excel yang Terdeteksi:</strong>
+                <div class="mt-2">
+                    @foreach($excelColumns as $col)
+                    <span class="badge bg-success me-1">{{ $col }}</span>
+                    @endforeach
                 </div>
             </div>
             @endif
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+            <!-- Mapping Table -->
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Kolom Excel
-                            </th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <i class="fas fa-arrow-right"></i>
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Kolom Database
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Transformasi
-                            </th>
+                            <th>Kolom Excel</th>
+                            <th class="text-center" width="50"><i class="fas fa-arrow-right"></i></th>
+                            <th>Kolom Database</th>
+                            <th>Transformasi</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                         @php
                             $dbColumns = [
                                 'track_id' => 'Track ID (Required)',
@@ -82,31 +67,42 @@
                                 'release_date' => 'Release Date',
                                 'track_price' => 'Track Price',
                                 'collection_price' => 'Collection Price',
-                                'country' => 'Country'
+                                'country' => 'Country',
+                                'currency' => 'Currency'
                             ];
+                            
+                            // Auto-match helper
+                            function findMatch($dbCol, $excelColumns) {
+                                $normalized = strtolower(str_replace('_', ' ', $dbCol));
+                                foreach ($excelColumns as $excel) {
+                                    $excelNorm = strtolower(trim($excel));
+                                    if ($excelNorm === $normalized || 
+                                        str_replace(' ', '', $excelNorm) === str_replace(' ', '', $normalized)) {
+                                        return $excel;
+                                    }
+                                }
+                                return '';
+                            }
                         @endphp
 
                         @foreach($dbColumns as $dbCol => $label)
                         <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td>
                                 <input type="text" 
-                                    class="excel-column-input w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
-                                    placeholder="Contoh: Track ID atau id_track"
+                                    class="form-control excel-column-input" 
+                                    placeholder="Contoh: {{ ucwords(str_replace('_', ' ', $dbCol)) }}"
                                     id="excel_{{ $dbCol }}"
-                                    value="{{ $excelColumns[array_search($dbCol, array_map('strtolower', array_map('trim', str_replace(' ', '_', $excelColumns)))) ?? ''] ?? '' }}">
+                                    value="{{ findMatch($dbCol, $excelColumns) }}">
                             </td>
-                            <td class="px-6 py-4 text-center">
-                                <i class="fas fa-long-arrow-alt-right text-gray-400"></i>
+                            <td class="text-center align-middle">
+                                <i class="fas fa-long-arrow-alt-right text-muted"></i>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <code class="bg-gray-100 px-3 py-1 rounded text-sm font-mono">{{ $dbCol }}</code>
-                                    <span class="ml-2 text-sm text-gray-600">{{ $label }}</span>
-                                </div>
+                            <td class="align-middle">
+                                <code class="bg-light p-2 rounded">{{ $dbCol }}</code>
+                                <small class="text-muted ms-2">{{ $label }}</small>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <select name="transformation_rules[{{ $dbCol }}][type]" 
-                                    class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <td>
+                                <select name="transformation_rules[{{ $dbCol }}][type]" class="form-select form-select-sm">
                                     <option value="">Tidak Ada</option>
                                     <option value="trim">Trim (Hapus Spasi)</option>
                                     <option value="uppercase">UPPERCASE</option>
@@ -122,31 +118,28 @@
                 </table>
             </div>
 
-            <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h4 class="font-semibold text-yellow-900 mb-2">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>Contoh Mapping
-                </h4>
-                <div class="text-sm text-yellow-800">
-                    <p><strong>Jika Excel Anda memiliki kolom:</strong> "id_track", "nama_lagu", "nama_artis"</p>
-                    <p class="mt-1"><strong>Maka mapping-nya:</strong></p>
-                    <ul class="list-disc list-inside ml-4 mt-1">
-                        <li>"id_track" → <code>track_id</code></li>
-                        <li>"nama_lagu" → <code>track_name</code></li>
-                        <li>"nama_artis" → <code>artist_name</code></li>
-                    </ul>
-                </div>
+            <!-- Example Box -->
+            <div class="alert alert-warning" role="alert">
+                <h6 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Contoh Mapping
+                </h6>
+                <p class="mb-1"><strong>Jika Excel Anda memiliki kolom:</strong> "id_track", "nama_lagu", "nama_artis"</p>
+                <p class="mb-0"><strong>Maka isi:</strong></p>
+                <ul class="mb-0">
+                    <li>Untuk track_id: ketik "id_track"</li>
+                    <li>Untuk track_name: ketik "nama_lagu"</li>
+                    <li>Untuk artist_name: ketik "nama_artis"</li>
+                </ul>
+                <p class="mb-0 mt-2 fw-bold">⚠️ Kosongkan kolom yang tidak ada di Excel Anda</p>
             </div>
 
-            <div class="mt-6 flex items-center justify-between">
-                <a href="{{ route('upload.index') }}" 
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                    <i class="fas fa-arrow-left mr-2"></i>
-                    Kembali
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-between">
+                <a href="{{ route('upload.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Kembali
                 </a>
-                <button type="submit" 
-                    class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-                    <i class="fas fa-save mr-2"></i>
-                    Simpan Mapping
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Simpan Mapping
                 </button>
             </div>
         </form>
@@ -156,7 +149,9 @@
 
 @push('scripts')
 <script>
-document.querySelector('form').addEventListener('submit', function(e) {
+document.getElementById('mappingForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
     const columnMapping = {};
     const inputs = document.querySelectorAll('.excel-column-input');
     
@@ -170,10 +165,11 @@ document.querySelector('form').addEventListener('submit', function(e) {
     });
     
     if (Object.keys(columnMapping).length === 0) {
-        e.preventDefault();
         alert('Minimal isi satu mapping kolom!');
-        return;
+        return false;
     }
+    
+    console.log('Column Mapping:', columnMapping); // Debug
     
     // Tambahkan hidden input untuk column mapping
     const hiddenInput = document.createElement('input');
@@ -181,6 +177,9 @@ document.querySelector('form').addEventListener('submit', function(e) {
     hiddenInput.name = 'column_mapping';
     hiddenInput.value = JSON.stringify(columnMapping);
     this.appendChild(hiddenInput);
+    
+    // Submit form
+    this.submit();
 });
 </script>
 @endpush

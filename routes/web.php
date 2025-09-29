@@ -20,7 +20,7 @@ Route::get('/', function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/upload', [UploadController::class, 'index'])->name('upload.index');
     Route::post('/upload/check', [UploadController::class, 'checkFormat'])->name('upload.check');
-    Route::post('/upload/process', [UploadController::class, 'processUpload'])->name('upload.process');
+    Route::post('/upload/process', [UploadController::class, 'upload'])->name('upload.process'); // FIXED: processUpload -> upload
     
     Route::resource('formats', ExcelFormatController::class);
     Route::resource('mapping', MappingController::class);

@@ -127,7 +127,7 @@ public function checkFormat(Request $request)
         }
 
         // Format baru, perlu buat mapping
-        session(['excel_columns' => $excelHeaders, 'temp_format_id' => $format->id]);
+        session(['excel_columns' => $excelHeaders]);
 
         return response()->json([
             'is_new_format' => true,

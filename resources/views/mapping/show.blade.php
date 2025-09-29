@@ -3,90 +3,74 @@
 @section('title', 'Detail Mapping')
 
 @section('content')
-<div class="bg-white shadow-sm rounded-lg">
-    <div class="px-6 py-4 border-b border-gray-200">
-        <div class="flex items-center justify-between">
-            <div>
-                <h2 class="text-2xl font-bold text-gray-800">
-                    <i class="fas fa-project-diagram text-blue-600 mr-2"></i>Detail Data Mapping
-                </h2>
-                <p class="text-gray-600 mt-1">{{ $mapping->mapping_index }}</p>
-            </div>
-            <a href="{{ route('mapping.index') }}" 
-                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                <i class="fas fa-arrow-left mr-2"></i>
-                Kembali
-            </a>
+<div class="card shadow-sm">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-0">
+                <i class="fas fa-project-diagram text-primary me-2"></i>Detail Data Mapping
+            </h2>
+            <p class="text-muted mb-0 mt-2">{{ $mapping->mapping_index }}</p>
         </div>
+        <a href="{{ route('mapping.index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Kembali
+        </a>
     </div>
 
-    <div class="p-6">
+    <div class="card-body">
         <!-- Info Format -->
-        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
-            <h3 class="text-lg font-semibold text-blue-900 mb-2">
-                <i class="fas fa-info-circle mr-2"></i>Informasi Format
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                    <p class="text-blue-700"><strong>Format Name:</strong></p>
-                    <p class="text-blue-800">{{ $mapping->excelFormat->format_name }}</p>
+        <div class="alert alert-info" role="alert">
+            <h5 class="alert-heading">
+                <i class="fas fa-info-circle me-2"></i>Informasi Format
+            </h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <strong>Format Name:</strong><br>
+                    {{ $mapping->excelFormat->format_name }}
                 </div>
-                <div>
-                    <p class="text-blue-700"><strong>Format Code:</strong></p>
-                    <p class="text-blue-800">{{ $mapping->excelFormat->format_code }}</p>
+                <div class="col-md-6">
+                    <strong>Format Code:</strong><br>
+                    {{ $mapping->excelFormat->format_code }}
                 </div>
-                <div>
-                    <p class="text-blue-700"><strong>Target Table:</strong></p>
-                    <p class="text-blue-800">
-                        <code class="bg-blue-100 px-2 py-1 rounded">{{ $mapping->excelFormat->target_table }}</code>
-                    </p>
+                <div class="col-md-6">
+                    <strong>Target Table:</strong><br>
+                    <code class="bg-white px-2 py-1 rounded">{{ $mapping->excelFormat->target_table }}</code>
                 </div>
-                <div>
-                    <p class="text-blue-700"><strong>Dibuat:</strong></p>
-                    <p class="text-blue-800">{{ $mapping->created_at->format('d M Y H:i') }}</p>
+                <div class="col-md-6">
+                    <strong>Dibuat:</strong><br>
+                    {{ $mapping->created_at->format('d M Y H:i') }}
                 </div>
             </div>
         </div>
 
         <!-- Column Mapping Table -->
-        <div class="mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                <i class="fas fa-table mr-2"></i>Column Mapping Configuration
-            </h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg">
-                    <thead class="bg-gray-50">
+        <div class="mb-4">
+            <h5 class="mb-3">
+                <i class="fas fa-table me-2"></i>Column Mapping Configuration
+            </h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                No
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Excel Column
-                            </th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                <i class="fas fa-arrow-right"></i>
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Database Column
-                            </th>
+                            <th width="50">No</th>
+                            <th>Excel Column</th>
+                            <th class="text-center" width="50"><i class="fas fa-arrow-right"></i></th>
+                            <th>Database Column</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                         @foreach($mapping->column_mapping as $index => $item)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $loop->iteration }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <code class="bg-yellow-50 px-3 py-1 rounded border border-yellow-200 text-yellow-800 font-mono text-sm">
+                        <tr>
+                            <td class="text-center">{{ $loop->iteration }}</td>
+                            <td>
+                                <code class="bg-warning bg-opacity-25 border border-warning px-3 py-2 rounded">
                                     {{ $index }}
                                 </code>
                             </td>
-                            <td class="px-6 py-4 text-center">
-                                <i class="fas fa-long-arrow-alt-right text-blue-500 text-xl"></i>
+                            <td class="text-center">
+                                <i class="fas fa-long-arrow-alt-right text-primary fs-5"></i>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <code class="bg-blue-50 px-3 py-1 rounded border border-blue-200 text-blue-800 font-mono text-sm">
+                            <td>
+                                <code class="bg-info bg-opacity-25 border border-info px-3 py-2 rounded text-primary">
                                     {{ $item }}
                                 </code>
                             </td>
@@ -99,37 +83,31 @@
 
         <!-- Transformation Rules -->
         @if($mapping->transformation_rules && count($mapping->transformation_rules) > 0)
-        <div class="mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">
-                <i class="fas fa-magic mr-2"></i>Transformation Rules
-            </h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg">
-                    <thead class="bg-purple-50">
+        <div class="mb-4">
+            <h5 class="mb-3">
+                <i class="fas fa-magic me-2"></i>Transformation Rules
+            </h5>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-purple-700 uppercase tracking-wider">
-                                Field
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-purple-700 uppercase tracking-wider">
-                                Transformation Type
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-purple-700 uppercase tracking-wider">
-                                Additional Info
-                            </th>
+                            <th>Field</th>
+                            <th>Transformation Type</th>
+                            <th>Additional Info</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                         @foreach($mapping->transformation_rules as $field => $rule)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <code class="bg-gray-100 px-3 py-1 rounded font-mono text-sm">{{ $field }}</code>
+                        <tr>
+                            <td>
+                                <code class="bg-light px-2 py-1 rounded">{{ $field }}</code>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            <td>
+                                <span class="badge bg-secondary">
                                     {{ $rule['type'] ?? 'N/A' }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-500">
+                            <td class="text-muted small">
                                 @if(isset($rule['format']))
                                     Format: <code>{{ $rule['format'] }}</code>
                                 @elseif(isset($rule['search']) && isset($rule['replace']))
@@ -147,15 +125,17 @@
         @endif
 
         <!-- JSON Preview -->
-        <div class="bg-gray-50 rounded-lg p-4">
-            <h4 class="text-sm font-semibold text-gray-700 mb-2">
-                <i class="fas fa-code mr-1"></i>JSON Configuration
-            </h4>
-            <pre class="bg-gray-900 text-green-400 p-4 rounded text-xs overflow-x-auto"><code>{{ json_encode([
-                'mapping_index' => $mapping->mapping_index,
-                'column_mapping' => $mapping->column_mapping,
-                'transformation_rules' => $mapping->transformation_rules
-            ], JSON_PRETTY_PRINT) }}</code></pre>
+        <div class="card bg-dark text-white">
+            <div class="card-body">
+                <h6 class="card-title text-success">
+                    <i class="fas fa-code me-1"></i>JSON Configuration
+                </h6>
+                <pre class="text-success mb-0" style="font-size: 0.85rem;"><code>{{ json_encode([
+                    'mapping_index' => $mapping->mapping_index,
+                    'column_mapping' => $mapping->column_mapping,
+                    'transformation_rules' => $mapping->transformation_rules
+                ], JSON_PRETTY_PRINT) }}</code></pre>
+            </div>
         </div>
     </div>
 </div>

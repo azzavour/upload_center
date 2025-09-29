@@ -31,14 +31,12 @@ class MappingService
 
     /**
      * Cari mapping yang cocok berdasarkan kolom Excel yang diupload
-     * 
-     * @param int $excelFormatId
-     * @param array $excelColumns Header kolom dari file Excel yang diupload
-     * @return MappingConfiguration|null
+     * Mapping dianggap cocok jika SEMUA kolom mapping ADA di file Excel
+     * Kolom extra di Excel akan diabaikan
      */
     public function findMappingByExcelColumns(int $excelFormatId, array $excelColumns)
     {
-        // Normalize excel columns (lowercase, trim) - JANGAN sort dulu
+        // Normalize excel columns (lowercase, trim)
         $normalizedExcelColumns = array_map(function($col) {
             return strtolower(trim($col));
         }, $excelColumns);
@@ -74,35 +72,27 @@ class MappingService
     }
 
     /**
-     * Normalize kolom untuk perbandingan
-     * - Lowercase semua
-     * - Trim whitespace
-     * - Sort alphabetically
-     * 
-     * @param array $columns
-     * @return array
+     * Apply mapping ke row data
+     * - Kolom yang ada di mapping tetapi tidak ada di row akan di-set null
+     * - Kolom yang ada di row tetapi tidak ada di mapping akan diabaikan
      */
-    protected function normalizeColumns(array $columns)
-    {
-        // Lowercase dan trim
-        $normalized = array_map(function($col) {
-            return strtolower(trim($col));
-        }, $columns);
-
-        // Sort
-        sort($normalized);
-
-        return $normalized;
-    }
-
     public function applyMapping(array $row, array $columnMapping)
     {
         $mappedData = [];
 
+        // Normalize row keys (header Excel)
+        $normalizedRow = [];
+        foreach ($row as $key => $value) {
+            $normalizedRow[strtolower(trim($key))] = $value;
+        }
+
         foreach ($columnMapping as $excelColumn => $dbColumn) {
-            // Hanya ambil kolom yang ada di mapping
-            // Jika kolom tidak ada di row Excel, set null
-            $mappedData[$dbColumn] = $row[$excelColumn] ?? null;
+            // Normalize excel column name dari mapping
+            $normalizedExcelCol = strtolower(trim($excelColumn));
+            
+            // Cek apakah kolom ada di row
+            // Jika ada, ambil nilainya. Jika tidak, set null
+            $mappedData[$dbColumn] = $normalizedRow[$normalizedExcelCol] ?? null;
         }
 
         // Kolom lain di $row yang tidak ada di $columnMapping akan DIABAIKAN
