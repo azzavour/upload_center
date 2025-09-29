@@ -7,6 +7,7 @@ use App\Models\ExcelFormat;
 use App\Models\MappingConfiguration;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class UploadService
@@ -62,13 +63,16 @@ class UploadService
 
     protected function importData($path, ExcelFormat $format, ?MappingConfiguration $mapping, UploadHistory $history)
     {
-        $fullPath = storage_path('app/' . $path);
-        
-        if (!file_exists($fullPath)) {
-            throw new \Exception('File tidak ditemukan: ' . $fullPath);
+        // $path from storeAs() is relative to the storage disk root.
+        // Maatwebsite/Excel can resolve this path automatically using the default disk.
+            if (!Storage::exists($path)) {
+            // We can throw a more specific exception if needed.
+            throw new \Exception('File ' . $path . ' tidak ditemukan di dalam storage.');
         }
-        
-        $data = Excel::toArray([], $fullPath);
+
+        $data = Excel::toArray([], $path);
+
+        $data = Excel::toArray([], $path);
         $rows = $data[0];
         
         $headers = array_shift($rows);

@@ -43,7 +43,7 @@ class MappingService
         $normalizedExcelColumns = $this->normalizeColumns($excelColumns);
 
         // DEBUG: Log untuk troubleshooting (hapus setelah selesai)
-        \Log::info('Finding mapping for columns:', [
+        Log::info('Finding mapping for columns:', [
             'format_id' => $excelFormatId,
             'excel_columns' => $excelColumns,
             'normalized' => $normalizedExcelColumns
@@ -60,7 +60,7 @@ class MappingService
             $normalizedMappingColumns = $this->normalizeColumns($mappingExcelColumns);
 
             // DEBUG: Log comparison
-            \Log::info('Comparing with mapping:', [
+            Log::info('Comparing with mapping:', [
                 'mapping_id' => $mapping->id,
                 'mapping_index' => $mapping->mapping_index,
                 'mapping_columns' => $mappingExcelColumns,
@@ -70,12 +70,12 @@ class MappingService
 
             // Bandingkan apakah struktur kolomnya sama
             if ($normalizedExcelColumns === $normalizedMappingColumns) {
-                \Log::info('Mapping found!', ['mapping_index' => $mapping->mapping_index]);
+                Log::info('Mapping found!', ['mapping_index' => $mapping->mapping_index]);
                 return $mapping;
             }
         }
 
-        \Log::warning('No matching mapping found');
+        Log::warning('No matching mapping found');
         return null;
     }
 
