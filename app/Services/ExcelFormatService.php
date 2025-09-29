@@ -29,7 +29,14 @@ class ExcelFormatService
         return ExcelFormat::findOrFail($id);
     }
 
-    public function isNewFormat(array $excelColumns, ExcelFormat $format)
+    /**
+     * Cek apakah file Excel menggunakan format standar (sesuai expected_columns)
+     * 
+     * @param array $excelColumns
+     * @param ExcelFormat $format
+     * @return bool
+     */
+    public function isStandardFormat(array $excelColumns, ExcelFormat $format)
     {
         $expectedColumns = $format->expected_columns;
         
@@ -46,6 +53,19 @@ class ExcelFormatService
         sort($excelColumnsNormalized);
         sort($expectedColumnsNormalized);
         
-        return $excelColumnsNormalized !== $expectedColumnsNormalized;
+        // TRUE jika sama (format standar), FALSE jika beda (butuh mapping)
+        return $excelColumnsNormalized === $expectedColumnsNormalized;
+    }
+
+    /**
+     * @deprecated Use isStandardFormat() instead
+     * Method lama yang akan dihapus
+     */
+    public function isNewFormat(array $excelColumns, ExcelFormat $format)
+    {
+        // Kebalikan dari isStandardFormat
+        // TRUE = format baru (butuh mapping)
+        // FALSE = format standar
+        return !$this->isStandardFormat($excelColumns, $format);
     }
 }

@@ -1,4 +1,3 @@
-{{-- resources/views/mapping/create.blade.php --}}
 @extends('layouts.app')
 
 @section('title', 'Buat Data Mapping')

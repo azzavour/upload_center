@@ -30,45 +30,76 @@ class UploadController extends Controller
         return view('upload.index', compact('formats'));
     }
 
-public function checkFormat(Request $request)
-{
-    $request->validate([
-        'file' => 'required|mimes:xlsx,xls,csv|max:10240',
-        'format_id' => 'required|exists:excel_formats,id'
-    ]);
+    public function checkFormat(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:10240',
+            'format_id' => 'required|exists:excel_formats,id'
+        ]);
 
-    try {
-        $file = $request->file('file');
-        $format = $this->formatService->findFormatById($request->format_id);
+        try {
+            $file = $request->file('file');
+            $format = $this->formatService->findFormatById($request->format_id);
 
-        // Baca header Excel
-        $data = Excel::toArray([], $file);
-        
-        // Validasi jika file kosong
-        if (empty($data) || empty($data[0])) {
-            return response()->json([
-                'error' => true,
-                'message' => 'File Excel kosong atau tidak valid'
-            ], 400);
-        }
-        
-        $headers = $data[0][0] ?? [];
+            // Baca header Excel
+            $data = Excel::toArray([], $file);
+            
+            // Validasi jika file kosong
+            if (empty($data) || empty($data[0])) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'File Excel kosong atau tidak valid'
+                ], 400);
+            }
+            
+            $headers = $data[0][0] ?? [];
 
-        // Validasi jika tidak ada header
-        if (empty($headers)) {
-            return response()->json([
-                'error' => true,
-                'message' => 'File Excel tidak memiliki header'
-            ], 400);
-        }
+            // Validasi jika tidak ada header
+            if (empty($headers)) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'File Excel tidak memiliki header'
+                ], 400);
+            }
 
-        // Cek apakah format baru
-        $isNewFormat = $this->formatService->isNewFormat($headers, $format);
+            // Normalize headers (trim whitespace)
+            $headers = array_map('trim', $headers);
 
-        // Simpan headers ke session untuk digunakan di mapping
-        session(['excel_columns' => $headers, 'temp_format_id' => $format->id]);
+            // STEP 1: Cek apakah ada mapping yang cocok dengan struktur file ini
+            $existingMapping = $this->mappingService->findMappingByExcelColumns($format->id, $headers);
 
-        if ($isNewFormat) {
+            if ($existingMapping) {
+                // Mapping sudah ada! Bisa langsung upload
+                return response()->json([
+                    'is_new_format' => false,
+                    'has_mapping' => true,
+                    'mapping_id' => $existingMapping->id,
+                    'mapping_index' => $existingMapping->mapping_index,
+                    'can_proceed' => true,
+                    'message' => 'Format ditemukan dengan mapping: ' . $existingMapping->mapping_index
+                ], 200);
+            }
+
+            // STEP 2: Jika tidak ada mapping, cek apakah ini format standar (expected_columns)
+            $isStandardFormat = $this->formatService->isStandardFormat($headers, $format);
+
+            if ($isStandardFormat) {
+                // Format standar, tidak perlu mapping
+                return response()->json([
+                    'is_new_format' => false,
+                    'has_mapping' => false,
+                    'can_proceed' => true,
+                    'message' => 'Format standar terdeteksi. Anda dapat melanjutkan upload.'
+                ], 200);
+            }
+
+            // STEP 3: Format baru terdeteksi, perlu buat mapping
+            // Simpan headers ke session untuk digunakan di mapping
+            session([
+                'excel_columns' => $headers, 
+                'temp_format_id' => $format->id
+            ]);
+
             return response()->json([
                 'is_new_format' => true,
                 'excel_columns' => $headers,
@@ -76,20 +107,14 @@ public function checkFormat(Request $request)
                 'message' => 'Format baru terdeteksi. Silakan buat mapping terlebih dahulu.',
                 'redirect' => route('mapping.create', ['format_id' => $format->id])
             ], 200);
-        } else {
+
+        } catch (\Exception $e) {
             return response()->json([
-                'is_new_format' => false,
-                'can_proceed' => true,
-                'message' => 'Format sesuai. Anda dapat melanjutkan upload.'
-            ], 200);
+                'error' => true,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
         }
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => true,
-            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-        ], 500);
     }
-}
 
     public function upload(Request $request)
     {
