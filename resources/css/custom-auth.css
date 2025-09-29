@@ -1,0 +1,7 @@
+/* Posisikan konten utama (form login/register) di tengah halaman */
+main.auth-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 150px); /* Kalkulasi tinggi halaman dikurangi tinggi navbar & footer kira-kira */
+}

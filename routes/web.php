@@ -2,39 +2,32 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ExcelFormatController;
-use App\Http\Controllers\UploadController;
 use App\Http\Controllers\MappingController;
 use App\Http\Controllers\HistoryController;
+use App\Http\Controllers\UploadController;
+use Illuminate\Support\Facades\Auth;
 
+// Rute untuk autentikasi (Login, Register, dll.)
+Auth::routes();
+
+// Halaman utama akan langsung mengarahkan ke halaman upload jika sudah login,
+// atau ke halaman login jika belum.
 Route::get('/', function () {
     return redirect()->route('upload.index');
-});
+})->middleware('auth');
 
-// Excel Format Routes
-Route::prefix('formats')->name('formats.')->group(function () {
-    Route::get('/', [ExcelFormatController::class, 'index'])->name('index');
-    Route::get('/create', [ExcelFormatController::class, 'create'])->name('create');
-    Route::post('/', [ExcelFormatController::class, 'store'])->name('store');
-});
+// Grup rute yang hanya bisa diakses setelah login
+Route::middleware(['auth'])->group(function () {
+    Route::get('/upload', [UploadController::class, 'index'])->name('upload.index');
+    Route::post('/upload/check', [UploadController::class, 'checkFormat'])->name('upload.check');
+    Route::post('/upload/process', [UploadController::class, 'processUpload'])->name('upload.process');
+    
+    Route::resource('formats', ExcelFormatController::class);
+    Route::resource('mapping', MappingController::class);
+    Route::resource('history', HistoryController::class);
 
-// Upload Routes
-Route::prefix('upload')->name('upload.')->group(function () {
-    Route::get('/', [UploadController::class, 'index'])->name('index');
-    Route::post('/check-format', [UploadController::class, 'checkFormat'])->name('check');
-    Route::post('/process', [UploadController::class, 'upload'])->name('process');
+    // Default home route dari Laravel, kita arahkan juga ke upload
+    Route::get('/home', function () {
+        return redirect()->route('upload.index');
+    })->name('home');
 });
-
-// Mapping Routes
-Route::prefix('mapping')->name('mapping.')->group(function () {
-    Route::get('/', [MappingController::class, 'index'])->name('index');
-    Route::get('/create', [MappingController::class, 'create'])->name('create');
-    Route::post('/', [MappingController::class, 'store']);
-    Route::post('/', [MappingController::class, 'store'])->name('store');
-    Route::get('/{id}', [MappingController::class, 'show'])->name('show');
-});
-
-Route::prefix('history')->name('history.')->group(function () {
-    Route::get('/', [HistoryController::class, 'index'])->name('index');
-    Route::get('/{id}', [HistoryController::class, 'show'])->name('show');
-});
-Route::delete('/mapping/{id}', [MappingController::class, 'destroy'])->name('mapping.destroy');
