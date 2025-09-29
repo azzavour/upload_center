@@ -165,7 +165,13 @@ document.getElementById('checkBtn').addEventListener('click', async function() {
                 window.location.href = result.redirect;
             }
         } else {
-            alert(result.message);
+             alert(result.message); // Tampilkan pesan dari server
+            
+            // Cek apakah server mengirimkan mapping_id
+            if (result.has_mapping && result.mapping_id) {
+                // Simpan mapping_id ke input tersembunyi
+                document.getElementById('mapping_id').value = result.mapping_id;
+            }
             document.getElementById('uploadBtn').disabled = false;
         }
     } catch (error) {
