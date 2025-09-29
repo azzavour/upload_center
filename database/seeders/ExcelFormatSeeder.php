@@ -30,24 +30,24 @@ class ExcelFormatSeeder extends Seeder
         ]);
 
         // Format alternatif dengan nama kolom Indonesia
-        ExcelFormat::create([
-            'format_name' => 'Format Musik Indonesia',
-            'format_code' => 'music-tracks-indo',
-            'description' => 'Format alternatif dengan nama kolom dalam Bahasa Indonesia',
-            'expected_columns' => [
-                'ID Track',
-                'Nama Lagu',
-                'ID Artis',
-                'Nama Artis',
-                'Nama Album',
-                'Genre Musik',
-                'Tanggal Rilis',
-                'Harga Track',
-                'Harga Collection',
-                'Negara'
-            ],
-            'target_table' => 'tracks',
-            'is_active' => true
-        ]);
+        // ExcelFormat::create([
+        //     'format_name' => 'Format Musik Indonesia',
+        //     'format_code' => 'music-tracks-indo',
+        //     'description' => 'Format alternatif dengan nama kolom dalam Bahasa Indonesia',
+        //     'expected_columns' => [
+        //         'ID Track',
+        //         'Nama Lagu',
+        //         'ID Artis',
+        //         'Nama Artis',
+        //         'Nama Album',
+        //         'Genre Musik',
+        //         'Tanggal Rilis',
+        //         'Harga Track',
+        //         'Harga Collection',
+        //         'Negara'
+        //     ],
+        //     'target_table' => 'tracks',
+        //     'is_active' => true
+        // ]);
     }
 }
