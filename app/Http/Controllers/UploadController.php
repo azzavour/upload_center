@@ -62,13 +62,31 @@ class UploadController extends Controller
                 ], 400);
             }
 
-            // Normalize headers (trim whitespace)
+            // Normalize headers: trim whitespace dan filter kolom kosong
             $headers = array_map('trim', $headers);
+            $headers = array_filter($headers, function($header) {
+                return $header !== '';
+            });
+            $headers = array_values($headers); // Re-index array setelah filter
 
             // STEP 1: Cek apakah ada mapping yang cocok dengan struktur file ini
             $existingMapping = $this->mappingService->findMappingByExcelColumns($format->id, $headers);
 
             if ($existingMapping) {
+                // Hitung kolom yang akan diabaikan
+                $mappingColumns = array_keys($existingMapping->column_mapping);
+                $mappingColumnsNormalized = array_map(function($col) {
+                    return strtolower(trim($col));
+                }, $mappingColumns);
+                
+                $headersNormalized = array_map('strtolower', $headers);
+                $ignoredColumns = array_diff($headersNormalized, $mappingColumnsNormalized);
+                
+                $message = 'Format ditemukan dengan mapping: ' . $existingMapping->mapping_index;
+                if (count($ignoredColumns) > 0) {
+                    $message .= ' (Kolom diabaikan: ' . implode(', ', array_values($ignoredColumns)) . ')';
+                }
+                
                 // Mapping sudah ada! Bisa langsung upload
                 return response()->json([
                     'is_new_format' => false,
@@ -76,7 +94,7 @@ class UploadController extends Controller
                     'mapping_id' => $existingMapping->id,
                     'mapping_index' => $existingMapping->mapping_index,
                     'can_proceed' => true,
-                    'message' => 'Format ditemukan dengan mapping: ' . $existingMapping->mapping_index
+                    'message' => $message
                 ], 200);
             }
 

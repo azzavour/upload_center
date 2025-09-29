@@ -78,4 +78,28 @@ class MappingController extends Controller
         $mapping = \App\Models\MappingConfiguration::with('excelFormat')->findOrFail($id);
         return view('mapping.show', compact('mapping'));
     }
+
+    public function destroy($id)
+    {
+        try {
+            $mapping = \App\Models\MappingConfiguration::findOrFail($id);
+            $mappingIndex = $mapping->mapping_index;
+            
+            // Cek apakah mapping sedang digunakan di upload history
+            $usageCount = \App\Models\UploadHistory::where('mapping_configuration_id', $id)->count();
+            
+            if ($usageCount > 0) {
+                return redirect()->route('mapping.index')
+                    ->with('error', 'Mapping ' . $mappingIndex . ' tidak dapat dihapus karena masih digunakan di ' . $usageCount . ' upload history.');
+            }
+            
+            $mapping->delete();
+            
+            return redirect()->route('mapping.index')
+                ->with('success', 'Mapping ' . $mappingIndex . ' berhasil dihapus!');
+        } catch (\Exception $e) {
+            return redirect()->route('mapping.index')
+                ->with('error', 'Gagal menghapus mapping: ' . $e->getMessage());
+        }
+    }
 }

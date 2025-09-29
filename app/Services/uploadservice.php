@@ -20,121 +20,139 @@ class UploadService
     }
 
     public function processUpload($file, ExcelFormat $format, ?MappingConfiguration $mapping = null)
-    {
-        $originalFilename = $file->getClientOriginalName();
-        $storedFilename = time() . '_' . $originalFilename;
-        
-        // Simpan file
-        $path = $file->storeAs('uploads', $storedFilename);
+{
+    $originalFilename = $file->getClientOriginalName();
+    $storedFilename = time() . '_' . $originalFilename;
+    
+    // PASTIKAN folder uploads ada
+    $uploadDir = storage_path('app/uploads');
+    if (!file_exists($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+    
+    // Simpan file dengan method move()
+    $uploadedFile = $file->move($uploadDir, $storedFilename);
+    $fullPath = $uploadedFile->getPathname();
+    
+    // Verifikasi file ada dan bisa dibaca
+    if (!file_exists($fullPath) || !is_readable($fullPath)) {
+        throw new \Exception('File tidak dapat dibaca: ' . $fullPath);
+    }
 
-        // Buat history record
-        $history = UploadHistory::create([
-            'excel_format_id' => $format->id,
-            'mapping_configuration_id' => $mapping?->id,
-            'original_filename' => $originalFilename,
-            'stored_filename' => $storedFilename,
-            'status' => 'pending',
-            'uploaded_at' => now(),
-            'uploaded_by' => null // Set null jika tidak ada auth
+    // Buat history record
+    $history = UploadHistory::create([
+        'excel_format_id' => $format->id,
+        'mapping_configuration_id' => $mapping?->id,
+        'original_filename' => $originalFilename,
+        'stored_filename' => $storedFilename,
+        'status' => 'pending',
+        'uploaded_at' => now(),
+        'uploaded_by' => null
+    ]);
+
+    // Process data
+    try {
+        $history->update(['status' => 'processing']);
+        $this->importData($fullPath, $format, $mapping, $history);
+        $history->update(['status' => 'completed']);
+    } catch (\Exception $e) {
+        $history->update([
+            'status' => 'failed',
+            'error_details' => ['message' => $e->getMessage()]
         ]);
-
-        // Process data
-        try {
-            $history->update(['status' => 'processing']);
-            $this->importData($path, $format, $mapping, $history);
-            $history->update(['status' => 'completed']);
-        } catch (\Exception $e) {
-            $history->update([
-                'status' => 'failed',
-                'error_details' => ['message' => $e->getMessage()]
-            ]);
-            
-            throw $e;
-        }
-
-        return $history;
+        
+        throw $e;
     }
 
-    protected function importData($path, ExcelFormat $format, ?MappingConfiguration $mapping, UploadHistory $history)
-    {
-        $data = Excel::toArray([], storage_path('app/' . $path));
-        $rows = $data[0]; // Ambil sheet pertama
-        
-        // Ambil header (baris pertama)
-        $headers = array_shift($rows);
-        
-        $successCount = 0;
-        $failedCount = 0;
-        $errors = [];
+    return $history;
+}
 
-        DB::beginTransaction();
-        
-        try {
-            foreach ($rows as $index => $row) {
-                // Skip baris kosong
-                if (empty(array_filter($row))) {
-                    continue;
-                }
+protected function importData($fullPath, ExcelFormat $format, ?MappingConfiguration $mapping, UploadHistory $history)
+{
+    // Langsung gunakan full path
+    $data = Excel::toArray([], $fullPath);
+    
+    if (empty($data) || empty($data[0])) {
+        throw new \Exception('File Excel kosong atau tidak valid');
+    }
+    
+    $rows = $data[0];
+    
+    // Ambil header dan NORMALIZE
+    $headers = array_shift($rows);
+    $headers = array_map('trim', $headers);
+    $headers = array_filter($headers, function($h) {
+        return $h !== '';
+    });
+    $headers = array_values($headers);
+    
+    if (empty($headers)) {
+        throw new \Exception('Header tidak ditemukan di file Excel');
+    }
+    
+    $successCount = 0;
+    $failedCount = 0;
+    $errors = [];
 
-                try {
-                    // Kombinasikan header dengan data
-                    $rowData = array_combine($headers, $row);
-                    
-                    // Apply mapping jika ada
-                    if ($mapping) {
-                        $rowData = $this->mappingService->applyMapping($rowData, $mapping->column_mapping);
-                        
-                        // Apply transformation rules
-                        if ($mapping->transformation_rules) {
-                            $rowData = $this->applyTransformations($rowData, $mapping->transformation_rules);
-                        }
-                    }
-                    
-                    // Transformasi khusus untuk tracks
-                    $rowData = $this->transformTrackData($rowData);
-                    $rowData['upload_history_id'] = $history->id;
-                    
-                    DB::table($format->target_table)->insert($rowData);
-                    
-                    $successCount++;
-                } catch (\Exception $e) {
-                    $failedCount++;
-                    $errors[] = [
-                        'row' => $index + 2, // +2 karena header dan index mulai dari 0
-                        'data' => $rowData ?? [],
-                        'error' => $e->getMessage()
-                    ];
-                }
+    DB::beginTransaction();
+    
+    try {
+        foreach ($rows as $index => $row) {
+            if (empty(array_filter($row))) {
+                continue;
             }
-            
-            DB::commit();
-            
-            // Update history
-            $history->update([
-                'total_rows' => count($rows),
-                'success_rows' => $successCount,
-                'failed_rows' => $failedCount,
-                'error_details' => $errors
-            ]);
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
+
+            try {
+                $rowData = array_combine($headers, array_slice($row, 0, count($headers)));
+                
+                if ($mapping) {
+                    $rowData = $this->mappingService->applyMapping($rowData, $mapping->column_mapping);
+                    
+                    if ($mapping->transformation_rules) {
+                        $rowData = $this->applyTransformations($rowData, $mapping->transformation_rules);
+                    }
+                }
+                
+                $rowData = $this->transformTrackData($rowData);
+                $rowData['upload_history_id'] = $history->id;
+                
+                DB::table($format->target_table)->insert($rowData);
+                
+                $successCount++;
+            } catch (\Exception $e) {
+                $failedCount++;
+                $errors[] = [
+                    'row' => $index + 2,
+                    'data' => $rowData ?? [],
+                    'error' => $e->getMessage()
+                ];
+            }
         }
+        
+        DB::commit();
+        
+        $history->update([
+            'total_rows' => count($rows),
+            'success_rows' => $successCount,
+            'failed_rows' => $failedCount,
+            'error_details' => $errors
+        ]);
+        
+    } catch (\Exception $e) {
+        DB::rollBack();
+        throw $e;
     }
+}
 
     protected function transformTrackData(array $data)
     {
-        // Transform Release Date
         if (isset($data['release_date']) && !empty($data['release_date'])) {
             try {
                 if (is_numeric($data['release_date'])) {
-                    // Excel serial date
                     $data['release_date'] = Carbon::createFromFormat('Y-m-d', '1900-01-01')
                         ->addDays($data['release_date'] - 2)
                         ->format('Y-m-d');
                 } else {
-                    // String date
                     $data['release_date'] = Carbon::parse($data['release_date'])->format('Y-m-d');
                 }
             } catch (\Exception $e) {
@@ -142,7 +160,6 @@ class UploadService
             }
         }
         
-        // Transform Price - remove currency symbols
         if (isset($data['track_price'])) {
             $data['track_price'] = preg_replace('/[^0-9.]/', '', $data['track_price']);
             $data['track_price'] = $data['track_price'] ?: null;
@@ -153,7 +170,6 @@ class UploadService
             $data['collection_price'] = $data['collection_price'] ?: null;
         }
         
-        // Normalize country code
         if (isset($data['country'])) {
             $data['country'] = strtoupper(substr($data['country'], 0, 10));
         }
@@ -181,7 +197,7 @@ class UploadService
                         $data[$field] = Carbon::parse($data[$field])
                             ->format($rule['format'] ?? 'Y-m-d');
                     } catch (\Exception $e) {
-                        // Keep original value if parsing fails
+                        // Keep original
                     }
                     break;
             }

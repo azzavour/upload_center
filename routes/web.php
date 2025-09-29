@@ -37,3 +37,4 @@ Route::prefix('history')->name('history.')->group(function () {
     Route::get('/', [HistoryController::class, 'index'])->name('index');
     Route::get('/{id}', [HistoryController::class, 'show'])->name('show');
 });
+Route::delete('/mapping/{id}', [MappingController::class, 'destroy'])->name('mapping.destroy');

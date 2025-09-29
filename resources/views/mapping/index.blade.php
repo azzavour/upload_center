@@ -12,6 +12,15 @@
     </div>
 
     <div class="p-6">
+        @if(session('success'))
+        <div class="mb-4 bg-green-50 border-l-4 border-green-400 p-4">
+            <div class="flex">
+                <i class="fas fa-check-circle text-green-400 mr-2"></i>
+                <p class="text-sm text-green-700">{{ session('success') }}</p>
+            </div>
+        </div>
+        @endif
+
         @if($mappings->isEmpty())
         <div class="text-center py-12">
             <i class="fas fa-project-diagram text-6xl text-gray-300 mb-4"></i>
@@ -78,12 +87,22 @@
                         @endif
                     </div>
 
-                    <div>
+                    <div class="flex flex-col gap-2 ml-4">
                         <a href="{{ route('mapping.show', $mapping->id) }}" 
                             class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                             <i class="fas fa-eye mr-2"></i>
                             Detail
                         </a>
+                        <form action="{{ route('mapping.destroy', $mapping->id) }}" method="POST" 
+                            onsubmit="return confirm('Yakin ingin menghapus mapping {{ $mapping->mapping_index }}? Tindakan ini tidak dapat dibatalkan!');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" 
+                                class="w-full inline-flex items-center px-3 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50">
+                                <i class="fas fa-trash mr-2"></i>
+                                Hapus
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
