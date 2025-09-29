@@ -86,6 +86,24 @@
             </div>
         </form>
 
+        <div id="preview-section" class="mt-8 hidden">
+    <h3 class="text-lg font-semibold text-gray-700 mb-2">
+        <i class="fas fa-table mr-2"></i>Pratinjau & Analisis Kolom
+    </h3>
+    <p class="text-sm text-gray-500 mb-4">
+        Berikut adalah 3 baris pertama dari file Anda. Periksa status kolom untuk memastikan data akan diimpor dengan benar.
+    </p>
+
+    <div id="preview-container" class="overflow-x-auto border border-gray-200 rounded-lg">
+        {{-- Tabel pratinjau akan dibuat oleh JavaScript di sini --}}
+    </div>
+
+    <div class="mt-4 flex space-x-4 text-sm">
+        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span> Kolom Terpetakan</span>
+        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span> Kolom Diabaikan</span>
+    </div>
+</div>
+
         <div id="loading" class="hidden mt-6">
             <div class="flex items-center justify-center">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -124,12 +142,15 @@ document.getElementById('checkBtn').addEventListener('click', async function() {
     const fileInput = document.getElementById('file-upload');
     const formatId = document.getElementById('format_id').value;
     
+    // Sembunyikan pratinjau lama dan reset tombol upload
+    document.getElementById('preview-section').classList.add('hidden');
+    document.getElementById('uploadBtn').disabled = true;
+
     if (!fileInput.files[0] || !formatId) {
         alert('Pilih format dan file terlebih dahulu!');
         return;
     }
     
-    // Disable button saat loading
     this.disabled = true;
     this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memeriksa...';
     
@@ -146,39 +167,95 @@ document.getElementById('checkBtn').addEventListener('click', async function() {
             body: formData
         });
         
-        // Parse JSON response
         const result = await response.json();
         
-        // Enable button kembali
         this.disabled = false;
         this.innerHTML = '<i class="fas fa-search mr-2"></i>Cek Format';
         
-        if (result.error) {
-            alert('Error: ' + result.message);
+        if (!response.ok) { // Cek jika respons HTTP tidak sukses (misal: 4xx, 5xx)
+            alert('Error: ' + (result.message || 'Terjadi kesalahan pada server.'));
             return;
         }
         
-        if (result.is_new_format) {
-            document.getElementById('mapping-section').classList.remove('hidden');
+        // =================================================================
+        // ==== BAGIAN BARU UNTUK MENAMPILKAN PRATINJAU (DITAMBAHKAN) ====
+        // =================================================================
+        if (result.preview) {
+            const previewSection = document.getElementById('preview-section');
+            const container = document.getElementById('preview-container');
+            container.innerHTML = ''; // Kosongkan pratinjau sebelumnya
+
+            const table = document.createElement('table');
+            table.className = 'min-w-full divide-y divide-gray-200';
+
+            // 1. Buat Header Tabel dari hasil analisis
+            const thead = document.createElement('thead');
+            thead.className = 'bg-gray-50';
+            const headerRow = document.createElement('tr');
             
-            if (confirm('Format baru terdeteksi! Anda akan diarahkan ke halaman mapping. Lanjutkan?')) {
+            result.preview.headers.forEach(header => {
+                const th = document.createElement('th');
+                th.scope = 'col';
+                th.className = 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider';
+                
+                let statusClass = '';
+                let statusIndicator = '';
+                if (header.status === 'mapped') {
+                    statusClass = 'bg-green-100 text-green-800';
+                    statusIndicator = `<span title="Akan diimpor ke: ${header.mapped_to}" class="w-3 h-3 inline-block rounded-full bg-green-500 ml-2"></span>`;
+                } else if (header.status === 'ignored') {
+                    statusClass = 'bg-yellow-100 text-yellow-800';
+                    statusIndicator = `<span title="Kolom ini akan diabaikan" class="w-3 h-3 inline-block rounded-full bg-yellow-500 ml-2"></span>`;
+                }
+                
+                th.classList.add(...statusClass.split(' '));
+                th.innerHTML = `<span>${header.name}</span>${statusIndicator}`;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // 2. Buat Body Tabel dari data sampel
+            const tbody = document.createElement('tbody');
+            tbody.className = 'bg-white divide-y divide-gray-200';
+            result.preview.data.forEach(rowData => {
+                const tr = document.createElement('tr');
+                // Sesuaikan jumlah sel dengan jumlah header
+                for (let i = 0; i < result.preview.headers.length; i++) {
+                    const td = document.createElement('td');
+                    td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-700';
+                    td.textContent = rowData[i] || ''; // Tampilkan string kosong jika data tidak ada
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            container.appendChild(table);
+            previewSection.classList.remove('hidden'); // Tampilkan seksi pratinjau
+        }
+        // =================================================================
+        // ==== AKHIR BAGIAN BARU ====
+        // =================================================================
+        
+        if (result.is_new_format) {
+            if (confirm(result.message + ' Lanjutkan?')) {
                 window.location.href = result.redirect;
             }
         } else {
-             alert(result.message); // Tampilkan pesan dari server
+            alert(result.message);
             
-            // Cek apakah server mengirimkan mapping_id
             if (result.has_mapping && result.mapping_id) {
-                // Simpan mapping_id ke input tersembunyi
                 document.getElementById('mapping_id').value = result.mapping_id;
             }
-            document.getElementById('uploadBtn').disabled = false;
+            
+            if (result.can_proceed) {
+                document.getElementById('uploadBtn').disabled = false;
+            }
         }
     } catch (error) {
-        // Enable button kembali
         this.disabled = false;
         this.innerHTML = '<i class="fas fa-search mr-2"></i>Cek Format';
-        
         console.error('Error:', error);
         alert('Terjadi kesalahan saat memeriksa format. Silakan coba lagi.');
     }

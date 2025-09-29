@@ -7,6 +7,7 @@ use App\Services\ExcelFormatService;
 use App\Services\MappingService;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Schema;
 
 class UploadController extends Controller
 {
@@ -30,109 +31,118 @@ class UploadController extends Controller
         return view('upload.index', compact('formats'));
     }
 
-    public function checkFormat(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv|max:10240',
-            'format_id' => 'required|exists:excel_formats,id'
-        ]);
 
-        try {
-            $file = $request->file('file');
-            $format = $this->formatService->findFormatById($request->format_id);
+public function checkFormat(Request $request)
+{
+    $request->validate([
+        'file' => 'required|mimes:xlsx,xls,csv|max:10240',
+        'format_id' => 'required|exists:excel_formats,id'
+    ]);
 
-            // Baca header Excel
-            $data = Excel::toArray([], $file);
-            
-            // Validasi jika file kosong
-            if (empty($data) || empty($data[0])) {
-                return response()->json([
-                    'error' => true,
-                    'message' => 'File Excel kosong atau tidak valid'
-                ], 400);
-            }
-            
-            $headers = $data[0][0] ?? [];
+    try {
+        $file = $request->file('file');
+        $format = $this->formatService->findFormatById($request->format_id);
 
-            // Validasi jika tidak ada header
-            if (empty($headers)) {
-                return response()->json([
-                    'error' => true,
-                    'message' => 'File Excel tidak memiliki header'
-                ], 400);
-            }
-
-            // Normalize headers: trim whitespace dan filter kolom kosong
-            $headers = array_map('trim', $headers);
-            $headers = array_filter($headers, function($header) {
-                return $header !== '';
-            });
-            $headers = array_values($headers); // Re-index array setelah filter
-
-            // STEP 1: Cek apakah ada mapping yang cocok dengan struktur file ini
-            $existingMapping = $this->mappingService->findMappingByExcelColumns($format->id, $headers);
-
-            if ($existingMapping) {
-                // Hitung kolom yang akan diabaikan
-                $mappingColumns = array_keys($existingMapping->column_mapping);
-                $mappingColumnsNormalized = array_map(function($col) {
-                    return strtolower(trim($col));
-                }, $mappingColumns);
-                
-                $headersNormalized = array_map('strtolower', $headers);
-                $ignoredColumns = array_diff($headersNormalized, $mappingColumnsNormalized);
-                
-                $message = 'Format ditemukan dengan mapping: ' . $existingMapping->mapping_index;
-                if (count($ignoredColumns) > 0) {
-                    $message .= ' (Kolom diabaikan: ' . implode(', ', array_values($ignoredColumns)) . ')';
-                }
-                
-                // Mapping sudah ada! Bisa langsung upload
-                return response()->json([
-                    'is_new_format' => false,
-                    'has_mapping' => true,
-                    'mapping_id' => $existingMapping->id,
-                    'mapping_index' => $existingMapping->mapping_index,
-                    'can_proceed' => true,
-                    'message' => $message
-                ], 200);
-            }
-
-            // STEP 2: Jika tidak ada mapping, cek apakah ini format standar (expected_columns)
-            $isStandardFormat = $this->formatService->isStandardFormat($headers, $format);
-
-            if ($isStandardFormat) {
-                // Format standar, tidak perlu mapping
-                return response()->json([
-                    'is_new_format' => false,
-                    'has_mapping' => false,
-                    'can_proceed' => true,
-                    'message' => 'Format standar terdeteksi. Anda dapat melanjutkan upload.'
-                ], 200);
-            }
-
-            // STEP 3: Format baru terdeteksi, perlu buat mapping
-            // Simpan headers ke session untuk digunakan di mapping
-            session([
-                'excel_columns' => $headers, 
-                'temp_format_id' => $format->id
-            ]);
-
-            return response()->json([
-                'is_new_format' => true,
-                'excel_columns' => $headers,
-                'expected_columns' => $format->expected_columns,
-                'message' => 'Format baru terdeteksi. Silakan buat mapping terlebih dahulu.',
-                'redirect' => route('mapping.create', ['format_id' => $format->id])
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => true,
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-            ], 500);
+        // --- Validasi dan Pembacaan Header (dari kode Anda) ---
+        $data = Excel::toArray([], $file);
+        if (empty($data) || empty($data[0])) {
+            return response()->json(['error' => true, 'message' => 'File Excel kosong atau tidak valid'], 400);
         }
+        
+        // Normalisasi header (dari kode Anda, ini sudah bagus)
+        $excelHeaders = collect($data[0][0] ?? [])->map(fn($h) => trim($h))->filter()->values()->all();
+
+        if (empty($excelHeaders)) {
+            return response()->json(['error' => true, 'message' => 'File Excel tidak memiliki header'], 400);
+        }
+
+        // --- Logika Inti (Gabungan) ---
+
+        // Cek mapping yang sudah ada
+        $existingMapping = $this->mappingService->findMappingByExcelColumns($format->id, $excelHeaders);
+
+        // Apapun hasilnya (ada mapping, standar, atau baru), kita siapkan data pratinjau
+        // Ambil 3 baris data pertama sebagai sampel (baris 2, 3, 4 di Excel)
+        $sampleData = collect($data[0])->slice(1)->take(3)->values()->all();
+
+        // Siapkan variabel untuk analisis header
+        $headerAnalysis = [];
+        $mappingToUse = $existingMapping ? $existingMapping->column_mapping : [];
+
+        // Jika tidak ada mapping custom, coba gunakan format standar sebagai dasar analisis
+        if (empty($mappingToUse) && $this->formatService->isStandardFormat($excelHeaders, $format)) {
+            foreach ($format->expected_columns as $col) {
+                $mappingToUse[$col] = $col;
+            }
+        }
+        
+        // Lakukan analisis header berdasarkan mapping yang akan digunakan
+        foreach ($excelHeaders as $index => $header) {
+            $dbColumn = collect($mappingToUse)->search(function ($dbCol, $excelCol) use ($header) {
+                return strtolower(trim($excelCol)) === strtolower($header);
+            });
+
+            if ($dbColumn !== false) {
+                $headerAnalysis[] = [
+                    'name' => $header,
+                    'status' => 'mapped',
+                    'mapped_to' => $mappingToUse[$dbColumn]
+                ];
+            } else {
+                $headerAnalysis[] = [
+                    'name' => $header,
+                    'status' => 'ignored',
+                    'mapped_to' => null
+                ];
+            }
+        }
+        
+        // Buat data pratinjau untuk dikirim ke frontend
+        $previewPayload = [
+            'headers' => $headerAnalysis,
+            'data' => $sampleData
+        ];
+
+        // --- Kondisi dan Respons (dari kode Anda, dengan penambahan data pratinjau) ---
+
+        if ($existingMapping) {
+            return response()->json([
+                'is_new_format' => false,
+                'has_mapping' => true,
+                'mapping_id' => $existingMapping->id,
+                'can_proceed' => true,
+                'message' => 'Format file valid dan mapping yang cocok ditemukan.',
+                'preview' => $previewPayload // Tambahkan ini
+            ], 200);
+        }
+
+        if ($this->formatService->isStandardFormat($excelHeaders, $format)) {
+            return response()->json([
+                'is_new_format' => false,
+                'has_mapping' => false,
+                'can_proceed' => true,
+                'message' => 'Format standar terdeteksi. Silakan periksa pratinjau sebelum melanjutkan.',
+                'preview' => $previewPayload // Tambahkan ini
+            ], 200);
+        }
+
+        // Format baru, perlu buat mapping
+        session(['excel_columns' => $excelHeaders, 'temp_format_id' => $format->id]);
+
+        return response()->json([
+            'is_new_format' => true,
+            'message' => 'Format baru terdeteksi. Anda akan diarahkan untuk membuat mapping.',
+            'redirect' => route('mapping.create', ['format_id' => $format->id])
+            // Pratinjau tidak dikirim di sini karena akan dialihkan
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => true,
+            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function upload(Request $request)
     {
