@@ -5,22 +5,53 @@ namespace App\Services;
 use App\Models\MasterData;
 use App\Models\UploadHistory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MasterDataService
 {
+    protected $tableManager;
+
+    public function __construct(TableManagerService $tableManager)
+    {
+        $this->tableManager = $tableManager;
+    }
+
     /**
-     * Sinkronisasi data dari tabel department ke master_data
+     * ✅ FIXED: Sinkronisasi data dari tabel department ke master_data
      * Dipanggil setelah upload berhasil
      */
     public function syncToMasterData(UploadHistory $history)
     {
-        $sourceTable = $history->excelFormat->target_table;
+        $baseTableName = $history->excelFormat->target_table;
         $departmentId = $history->department_id;
 
+        // ✅ PERBAIKAN: Gunakan actual table name dengan prefix department
+        $actualTableName = $this->tableManager->getActualTableName($baseTableName, $departmentId);
+
+        Log::info('Syncing to master_data', [
+            'history_id' => $history->id,
+            'base_table' => $baseTableName,
+            'actual_table' => $actualTableName,
+            'department_id' => $departmentId
+        ]);
+
+        // Validasi tabel exists
+        if (!$this->tableManager->tableExists($baseTableName, $departmentId)) {
+            Log::error('Table does not exist for sync', [
+                'table' => $actualTableName
+            ]);
+            throw new \Exception("Table {$actualTableName} does not exist");
+        }
+
         // Ambil data yang baru di-insert (berdasarkan upload_history_id)
-        $data = DB::table($sourceTable)
+        $data = DB::table($actualTableName)
             ->where('upload_history_id', $history->id)
             ->get();
+
+        Log::info('Data retrieved for sync', [
+            'table' => $actualTableName,
+            'count' => $data->count()
+        ]);
 
         // Batch insert ke master_data
         $masterRecords = [];
@@ -28,7 +59,7 @@ class MasterDataService
             $masterRecords[] = [
                 'department_id' => $departmentId,
                 'upload_history_id' => $history->id,
-                'source_table' => $sourceTable,
+                'source_table' => $actualTableName, // ✅ Simpan actual table name
                 'data' => json_encode($row),
                 'created_at' => now(),
                 'updated_at' => now()
@@ -40,6 +71,10 @@ class MasterDataService
             foreach (array_chunk($masterRecords, 500) as $chunk) {
                 DB::table('master_data')->insert($chunk);
             }
+            
+            Log::info('Master data sync completed', [
+                'records_inserted' => count($masterRecords)
+            ]);
         }
 
         return count($masterRecords);
@@ -59,7 +94,7 @@ class MasterDataService
 
         // Filter by source table
         if (isset($filters['source_table'])) {
-            $query->where('source_table', $filters['source_table']);
+            $query->where('source_table', 'LIKE', '%' . $filters['source_table'] . '%');
         }
 
         // Filter by date range
@@ -127,36 +162,59 @@ class MasterDataService
      */
     public function detectDuplicateTables(): array
     {
-        $tables = DB::select("
-            SELECT DISTINCT target_table, department_id 
-            FROM excel_formats 
-            WHERE department_id IS NOT NULL
-        ");
+        $formats = DB::table('excel_formats')
+            ->whereNotNull('department_id')
+            ->get();
 
         $duplicates = [];
         $tableStructures = [];
 
-        foreach ($tables as $table) {
+        foreach ($formats as $format) {
+            // ✅ PERBAIKAN: Gunakan actual table name
+            $department = DB::table('departments')->find($format->department_id);
+            if (!$department) {
+                continue;
+            }
+
+            $deptCode = strtolower($department->code);
+            $actualTableName = "dept_{$deptCode}_{$format->target_table}";
+
+            // Check if table exists
+            $tableExists = DB::select("
+                SELECT tablename 
+                FROM pg_tables 
+                WHERE schemaname = 'public' 
+                AND tablename = ?
+            ", [$actualTableName]);
+
+            if (empty($tableExists)) {
+                continue;
+            }
+
             $columns = DB::select("
                 SELECT column_name 
                 FROM information_schema.columns 
                 WHERE table_name = ? 
-                AND column_name NOT IN ('id', 'upload_history_id', 'created_at', 'updated_at')
+                AND column_name NOT IN ('id', 'upload_history_id', 'department_id', 'created_at', 'updated_at')
                 ORDER BY column_name
-            ", [strtolower($table->target_table)]);
+            ", [$actualTableName]);
 
             $columnNames = array_map(fn($c) => $c->column_name, $columns);
             $signature = implode(',', $columnNames);
 
             if (isset($tableStructures[$signature])) {
                 $duplicates[] = [
-                    'original_table' => $tableStructures[$signature],
-                    'duplicate_table' => $table->target_table,
-                    'department_id' => $table->department_id,
+                    'original_table' => $tableStructures[$signature]['table'],
+                    'original_department' => $tableStructures[$signature]['department'],
+                    'duplicate_table' => $actualTableName,
+                    'duplicate_department' => $department->name,
                     'columns' => $columnNames
                 ];
             } else {
-                $tableStructures[$signature] = $table->target_table;
+                $tableStructures[$signature] = [
+                    'table' => $actualTableName,
+                    'department' => $department->name
+                ];
             }
         }
 

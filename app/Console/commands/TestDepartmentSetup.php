@@ -78,6 +78,14 @@ class TestDepartmentSetup extends Command
             $this->info("   ✅ Found {$formats->count()} formats");
             
             foreach ($formats as $format) {
+                // ✅ SKIP format tanpa department_id
+                if (!$format->department_id) {
+                    $this->warn("      ⚠️  Format: {$format->format_name}");
+                    $this->warn("         Missing department_id! Please assign this format to a department.");
+                    $allPassed = false;
+                    continue;
+                }
+                
                 $baseTable = $format->target_table;
                 $actualTable = $this->tableManager->getActualTableName($baseTable, $format->department_id);
                 $exists = Schema::hasTable($actualTable);
@@ -85,6 +93,7 @@ class TestDepartmentSetup extends Command
                 $status = $exists ? '✅' : '❌';
                 $this->line("      {$status} Format: {$format->format_name}");
                 $this->line("         Base: {$baseTable} → Actual: {$actualTable}");
+                $this->line("         Department: {$format->department->code}");
                 
                 if (!$exists) {
                     $this->error("         ❌ Table does not exist!");
@@ -104,7 +113,8 @@ class TestDepartmentSetup extends Command
             if (empty($tables)) {
                 $this->warn("      ⚠️  No tables found for this department");
             } else {
-                $this->info("      ✅ Found {count($tables)} tables:");
+                 $tableCount = count($tables);
+   $this->info("      ✅ Found {$tableCount} tables:");
                 foreach ($tables as $table) {
                     $rowCount = DB::table($table)->count();
                     $this->line("         • {$table} ({$rowCount} rows)");
@@ -159,6 +169,11 @@ class TestDepartmentSetup extends Command
         $requiredColumns = ['id', 'upload_history_id', 'department_id', 'created_at', 'updated_at'];
         
         foreach ($formats as $format) {
+            // Skip jika tidak ada department_id
+            if (!$format->department_id) {
+                continue;
+            }
+            
             $actualTable = $this->tableManager->getActualTableName($format->target_table, $format->department_id);
             
             if (!Schema::hasTable($actualTable)) {
