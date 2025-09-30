@@ -6,13 +6,25 @@ use App\Services\UploadService;
 use App\Services\ExcelFormatService;
 use App\Services\MappingService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // ✅ TAMBAHKAN INI
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class UploadController extends Controller
 {
+    /**
+     * @var UploadService
+     */
     protected $uploadService;
+    
+    /**
+     * @var ExcelFormatService
+     */
     protected $formatService;
+    
+    /**
+     * @var MappingService
+     */
     protected $mappingService;
 
     public function __construct(
@@ -28,8 +40,8 @@ class UploadController extends Controller
 
     public function index()
     {
-        /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
-        $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
         $departmentId = $user->isAdmin() ? null : $user->department_id;
         
         $formats = $this->formatService->getAllFormats($departmentId);
@@ -38,18 +50,37 @@ class UploadController extends Controller
 
     public function checkFormat(Request $request)
     {
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv|max:10240',
-            'format_id' => 'required|exists:excel_formats,id'
-        ]);
+        // Validasi sederhana berdasarkan extension saja
+        $file = $request->file('file');
+        
+        if (!$file) {
+            return response()->json(['error' => true, 'message' => 'File tidak ditemukan'], 400);
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        $validExtensions = ['xlsx', 'xls', 'csv'];
+        
+        if (!in_array($extension, $validExtensions)) {
+            return response()->json([
+                'error' => true, 
+                'message' => 'File harus berformat XLSX, XLS, atau CSV. Extension yang terdeteksi: ' . $extension
+            ], 400);
+        }
+
+        if ($file->getSize() > 10 * 1024 * 1024) {
+            return response()->json(['error' => true, 'message' => 'Ukuran file maksimal 10MB'], 400);
+        }
+
+        if (!$request->format_id) {
+            return response()->json(['error' => true, 'message' => 'Format ID tidak ditemukan'], 400);
+        }
 
         try {
-            $file = $request->file('file');
             $format = $this->formatService->findFormatById($request->format_id);
             
             // Cek akses department
-            /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
-            $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
             if (!$user->isAdmin() && $format->department_id !== $user->department_id) {
                 return response()->json(['error' => true, 'message' => 'Unauthorized access to this format'], 403);
             }
@@ -134,6 +165,7 @@ class UploadController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
+            Log::error('Upload check error: ' . $e->getMessage());
             return response()->json([
                 'error' => true,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
@@ -143,15 +175,31 @@ class UploadController extends Controller
 
     public function upload(Request $request)
     {
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv|max:10240',
-            'format_id' => 'required|exists:excel_formats,id',
-            'mapping_id' => 'nullable|exists:mapping_configurations,id'
-        ]);
+        // Validasi sederhana berdasarkan extension saja
+        $file = $request->file('file');
+        
+        if (!$file) {
+            return redirect()->back()->with('error', 'File tidak ditemukan');
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        $validExtensions = ['xlsx', 'xls', 'csv'];
+        
+        if (!in_array($extension, $validExtensions)) {
+            return redirect()->back()->with('error', 'File harus berformat XLSX, XLS, atau CSV');
+        }
+
+        if ($file->getSize() > 10 * 1024 * 1024) {
+            return redirect()->back()->with('error', 'Ukuran file maksimal 10MB');
+        }
+
+        if (!$request->format_id) {
+            return redirect()->back()->with('error', 'Format Excel wajib dipilih');
+        }
 
         try {
-            /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
-            $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
             
             $format = $this->formatService->findFormatById($request->format_id);
             
@@ -175,6 +223,7 @@ class UploadController extends Controller
             return redirect()->route('history.show', $history->id)
                 ->with('success', 'File berhasil diupload dan diproses!');
         } catch (\Exception $e) {
+            Log::error('Upload error: ' . $e->getMessage());
             return redirect()->back()
                 ->with('error', 'Gagal upload file: ' . $e->getMessage());
         }

@@ -13,6 +13,13 @@
 
 namespace App\Models{
 /**
+ * @property int $id
+ * @property string $code
+ * @property string $name
+ * @property string|null $description
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\ExcelFormat> $excelFormats
  * @property-read int|null $excel_formats_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MappingConfiguration> $mappingConfigurations
@@ -27,6 +34,13 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Department newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Department newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Department query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Department whereUpdatedAt($value)
  */
 	class Department extends \Eloquent {}
 }
@@ -42,6 +56,7 @@ namespace App\Models{
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property int|null $department_id
  * @property-read \App\Models\Department|null $department
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\MappingConfiguration> $mappingConfigurations
  * @property-read int|null $mapping_configurations_count
@@ -51,6 +66,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ExcelFormat newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ExcelFormat query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ExcelFormat whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ExcelFormat whereDepartmentId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ExcelFormat whereDescription($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ExcelFormat whereExpectedColumns($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ExcelFormat whereFormatCode($value)
@@ -72,6 +88,9 @@ namespace App\Models{
  * @property array<array-key, mixed>|null $transformation_rules
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property int|null $department_id
+ * @property string|null $mapping_name
+ * @property string|null $description
  * @property-read \App\Models\Department|null $department
  * @property-read \App\Models\ExcelFormat $excelFormat
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UploadHistory> $uploadHistories
@@ -81,9 +100,12 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereColumnMapping($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereDescription($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereExcelFormatId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereMappingIndex($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereMappingName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereTransformationRules($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MappingConfiguration whereUpdatedAt($value)
  */
@@ -92,11 +114,25 @@ namespace App\Models{
 
 namespace App\Models{
 /**
- * @property-read \App\Models\Department|null $department
- * @property-read \App\Models\UploadHistory|null $uploadHistory
+ * @property int $id
+ * @property int $department_id
+ * @property int $upload_history_id
+ * @property string $source_table
+ * @property array<array-key, mixed> $data
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Department $department
+ * @property-read \App\Models\UploadHistory $uploadHistory
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData whereData($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData whereDepartmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData whereSourceTable($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MasterData whereUploadHistoryId($value)
  */
 	class MasterData extends \Eloquent {}
 }
@@ -155,6 +191,7 @@ namespace App\Models{
  * @property int|null $uploaded_by
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property int|null $department_id
  * @property-read \App\Models\Department|null $department
  * @property-read \App\Models\ExcelFormat $excelFormat
  * @property-read \App\Models\MappingConfiguration|null $mappingConfiguration
@@ -163,6 +200,7 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UploadHistory newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UploadHistory query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UploadHistory whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UploadHistory whereDepartmentId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UploadHistory whereErrorDetails($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UploadHistory whereExcelFormatId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UploadHistory whereFailedRows($value)
@@ -195,6 +233,7 @@ namespace App\Models{
  * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $remember_token
+ * @property string $role
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UploadHistory> $uploadHistories
@@ -203,12 +242,14 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereDepartmentId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePassword($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRole($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  */
 	class User extends \Eloquent {}

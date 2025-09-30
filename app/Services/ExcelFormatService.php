@@ -19,7 +19,7 @@ class ExcelFormatService
         $data['format_code'] = $data['format_code'] ?? Str::slug($data['format_name']);
         $data['department_id'] = $departmentId;
         
-        // Normalisasi target table
+        // Normalisasi target table (base name tanpa prefix)
         $data['target_table'] = $this->tableManager->normalizeTableName($data['target_table']);
         
         // Normalisasi expected columns
@@ -30,11 +30,14 @@ class ExcelFormatService
             );
         }
         
-        // Buat tabel jika belum ada
-        if (!$this->tableManager->tableExists($data['target_table'])) {
+        // Buat tabel dengan prefix department
+        $actualTableName = $this->tableManager->getActualTableName($data['target_table'], $departmentId);
+        
+        if (!$this->tableManager->tableExists($data['target_table'], $departmentId)) {
             $this->tableManager->createDynamicTable(
                 $data['target_table'],
-                $data['expected_columns']
+                $data['expected_columns'],
+                $departmentId
             );
         }
         
@@ -66,6 +69,17 @@ class ExcelFormatService
     public function findFormatById(int $id)
     {
         return ExcelFormat::findOrFail($id);
+    }
+
+    /**
+     * Get actual table name dengan department prefix
+     */
+    public function getActualTableName(ExcelFormat $format): string
+    {
+        return $this->tableManager->getActualTableName(
+            $format->target_table,
+            $format->department_id
+        );
     }
 
     public function isStandardFormat(array $excelColumns, ExcelFormat $format)

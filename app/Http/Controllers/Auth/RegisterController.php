@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Department;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -30,6 +31,17 @@ class RegisterController extends Controller
     }
 
     /**
+     * Show the application registration form.
+     *
+     * @return \Illuminate\View\View
+     */
+    public function showRegistrationForm()
+    {
+        $departments = Department::active()->orderBy('name')->get();
+        return view('auth.register', compact('departments'));
+    }
+
+    /**
      * Get a validator for an incoming registration request.
      *
      * @param  array  $data
@@ -41,7 +53,7 @@ class RegisterController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'department_id' => ['required', 'exists:departments,id'], // ✅ VALIDASI DEPARTMENT
+            'department_id' => ['required', 'exists:departments,id'],
         ], [
             'department_id.required' => 'Please select a department',
             'department_id.exists' => 'Selected department is invalid',
@@ -60,7 +72,7 @@ class RegisterController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'department_id' => $data['department_id'], // ✅ SIMPAN DEPARTMENT
+            'department_id' => $data['department_id'],
             'role' => 'user', // Default role adalah user
         ]);
     }

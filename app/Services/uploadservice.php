@@ -8,27 +8,34 @@ use App\Models\MappingConfiguration;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class UploadService
 {
     protected $mappingService;
     protected $masterDataService;
+    protected $excelFormatService;
+    protected $tableManager;
 
     public function __construct(
         MappingService $mappingService,
-        MasterDataService $masterDataService
+        MasterDataService $masterDataService,
+        ExcelFormatService $excelFormatService,
+        TableManagerService $tableManager
     ) {
         $this->mappingService = $mappingService;
         $this->masterDataService = $masterDataService;
+        $this->excelFormatService = $excelFormatService;
+        $this->tableManager = $tableManager;
     }
 
     public function processUpload(
         $file, 
         ExcelFormat $format, 
         ?MappingConfiguration $mapping = null,
-       ?int $departmentId = null,
-?int $userId = null
+        ?int $departmentId = null,
+        ?int $userId = null
     ) {
         $originalFilename = $file->getClientOriginalName();
         $storedFilename = time() . '_' . $originalFilename;
@@ -53,12 +60,18 @@ class UploadService
 
         try {
             $history->update(['status' => 'processing']);
-            $this->importData($path, $format, $mapping, $history);
+            $this->importData($path, $format, $mapping, $history, $departmentId);
             $history->update(['status' => 'completed']);
             
             // Sinkronisasi ke master data
             $this->masterDataService->syncToMasterData($history);
         } catch (\Exception $e) {
+            Log::error('Upload processing error', [
+                'history_id' => $history->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             $history->update([
                 'status' => 'failed',
                 'error_details' => ['message' => $e->getMessage()]
@@ -70,13 +83,18 @@ class UploadService
         return $history;
     }
 
-    protected function importData($path, ExcelFormat $format, ?MappingConfiguration $mapping, UploadHistory $history)
+    protected function importData($path, ExcelFormat $format, ?MappingConfiguration $mapping, UploadHistory $history, ?int $departmentId)
     {
         if (!Storage::exists($path)) {
             throw new \Exception('File ' . $path . ' tidak ditemukan di dalam storage.');
         }
 
         $data = Excel::toArray([], $path);
+        
+        if (empty($data) || empty($data[0])) {
+            throw new \Exception('File Excel kosong atau tidak bisa dibaca.');
+        }
+        
         $rows = $data[0];
         
         $headers = array_shift($rows);
@@ -84,12 +102,29 @@ class UploadService
         $headers = array_filter($headers, fn($h) => $h !== '');
         $headers = array_values($headers);
         
+        if (empty($headers)) {
+            throw new \Exception('File Excel tidak memiliki header yang valid.');
+        }
+        
         $successCount = 0;
         $failedCount = 0;
         $errors = [];
         $warnings = [];
 
-        $validColumns = $this->getTableColumns($format->target_table);
+        // Get actual table name dengan department prefix
+        $actualTableName = $this->tableManager->getActualTableName($format->target_table, $departmentId);
+        
+        Log::info('Importing to table', [
+            'base_table' => $format->target_table,
+            'actual_table' => $actualTableName,
+            'department_id' => $departmentId
+        ]);
+
+        $validColumns = $this->getTableColumns($actualTableName);
+        
+        if (empty($validColumns)) {
+            throw new \Exception("Tabel {$actualTableName} tidak ditemukan atau tidak memiliki kolom.");
+        }
 
         DB::beginTransaction();
         
@@ -112,6 +147,7 @@ class UploadService
                     
                     $rowData = $this->transformTrackData($rowData);
                     $rowData['upload_history_id'] = $history->id;
+                    $rowData['department_id'] = $departmentId;
 
                     $originalKeys = array_keys($rowData);
                     $filteredData = array_intersect_key($rowData, array_flip($validColumns));
@@ -126,7 +162,7 @@ class UploadService
                     }
 
                     if (!empty($filteredData)) {
-                        DB::table($format->target_table)->insert($filteredData);
+                        DB::table($actualTableName)->insert($filteredData);
                         $successCount++;
                     } else {
                         throw new \Exception('Tidak ada kolom valid untuk di-insert');
@@ -139,10 +175,22 @@ class UploadService
                         'data' => $rowData ?? [],
                         'error' => $e->getMessage()
                     ];
+                    
+                    Log::warning('Row import failed', [
+                        'row_index' => $index + 2,
+                        'error' => $e->getMessage()
+                    ]);
                 }
             }
             
             DB::commit();
+            
+            Log::info('Import completed', [
+                'table' => $actualTableName,
+                'total_rows' => count($rows),
+                'success' => $successCount,
+                'failed' => $failedCount
+            ]);
             
             $history->update([
                 'total_rows' => count($rows),
@@ -156,6 +204,10 @@ class UploadService
             
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Import transaction failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             throw $e;
         }
     }
@@ -163,8 +215,17 @@ class UploadService
     protected function getTableColumns(string $tableName): array
     {
         $lowerTableName = strtolower($tableName);
-        $columns = DB::select("SELECT column_name FROM information_schema.columns WHERE table_name = ?", [$lowerTableName]);
-        return collect($columns)->pluck('column_name')->toArray();
+        
+        try {
+            $columns = DB::select("SELECT column_name FROM information_schema.columns WHERE table_name = ?", [$lowerTableName]);
+            return collect($columns)->pluck('column_name')->toArray();
+        } catch (\Exception $e) {
+            Log::error('Failed to get table columns', [
+                'table' => $tableName,
+                'error' => $e->getMessage()
+            ]);
+            return [];
+        }
     }
 
     protected function transformTrackData(array $data)
@@ -231,7 +292,7 @@ class UploadService
 
     public function getUploadHistory(?int $departmentId = null)
     {
-        $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader']);
+        $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader', 'department']);
         
         if ($departmentId) {
             $query->where('department_id', $departmentId);
@@ -242,7 +303,7 @@ class UploadService
 
     public function getUploadById(int $id, ?int $departmentId = null)
     {
-        $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader']);
+        $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader', 'department']);
         
         if ($departmentId) {
             $query->where('department_id', $departmentId);

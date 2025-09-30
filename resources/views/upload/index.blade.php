@@ -45,7 +45,7 @@
                         <label for="file-upload" class="btn btn-primary btn-sm">
                             <i class="fas fa-folder-open me-2"></i>Pilih File
                         </label>
-                        <input id="file-upload" name="file" type="file" class="d-none" accept=".xlsx,.xls,.csv" required>
+                        <input id="file-upload" name="file" type="file" class="d-none" required>
                         <p class="text-muted mb-0 mt-2">atau drag and drop</p>
                     </div>
                     <small class="text-muted">XLSX, XLS, CSV hingga 10MB</small>
@@ -120,6 +120,7 @@
             <li>Format tanggal: YYYY-MM-DD atau DD/MM/YYYY</li>
             <li>Harga gunakan format angka tanpa simbol mata uang</li>
             <li>Jika kolom berbeda, sistem akan meminta Anda melakukan mapping</li>
+            <li><strong>File CSV juga didukung!</strong> Pastikan encoding UTF-8</li>
         </ul>
     </div>
 </div>
@@ -127,11 +128,33 @@
 
 @push('scripts')
 <script>
+// Validasi file extension secara manual (lebih fleksibel)
+function isValidFileType(fileName) {
+    const validExtensions = ['.xlsx', '.xls', '.csv'];
+    const extension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+    return validExtensions.includes(extension);
+}
+
 document.getElementById('file-upload').addEventListener('change', function(e) {
-    const fileName = e.target.files[0]?.name;
+    const file = e.target.files[0];
     const fileNameDisplay = document.getElementById('file-name');
-    if (fileName) {
-        fileNameDisplay.textContent = '✓ ' + fileName;
+    
+    if (file) {
+        if (!isValidFileType(file.name)) {
+            alert('File harus berformat XLSX, XLS, atau CSV');
+            this.value = '';
+            fileNameDisplay.textContent = '';
+            return;
+        }
+        
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Ukuran file maksimal 10MB');
+            this.value = '';
+            fileNameDisplay.textContent = '';
+            return;
+        }
+        
+        fileNameDisplay.textContent = '✓ ' + file.name;
     }
 });
 
@@ -146,6 +169,12 @@ document.getElementById('checkBtn').addEventListener('click', async function() {
 
     if (!fileInput.files[0] || !formatId) {
         alert('Pilih format dan file terlebih dahulu!');
+        return;
+    }
+    
+    // Validasi file type
+    if (!isValidFileType(fileInput.files[0].name)) {
+        alert('File harus berformat XLSX, XLS, atau CSV');
         return;
     }
     
@@ -252,6 +281,14 @@ document.getElementById('checkBtn').addEventListener('click', async function() {
 
 document.getElementById('uploadForm').addEventListener('submit', async function(e) {
     e.preventDefault();
+    
+    const fileInput = document.getElementById('file-upload');
+    
+    // Validasi file type sebelum submit
+    if (!isValidFileType(fileInput.files[0].name)) {
+        alert('File harus berformat XLSX, XLS, atau CSV');
+        return;
+    }
     
     const uploadBtn = document.getElementById('uploadBtn');
     const formData = new FormData(this);
