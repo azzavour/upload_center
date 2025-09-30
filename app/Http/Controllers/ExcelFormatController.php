@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\ExcelFormatService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ExcelFormatController extends Controller
 {
@@ -17,7 +18,8 @@ class ExcelFormatController extends Controller
 
     public function index()
     {
-        $user = auth()->user();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
         $departmentId = $user->isAdmin() ? null : $user->department_id;
         
         $formats = $this->formatService->getAllFormats($departmentId);
@@ -39,7 +41,8 @@ class ExcelFormatController extends Controller
             'target_table' => 'required|string'
         ]);
 
-        $user = auth()->user();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
         
         if (!$user->hasDepartment() && !$user->isAdmin()) {
             return redirect()->back()

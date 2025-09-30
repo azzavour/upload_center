@@ -11,10 +11,10 @@ class MappingService
     public function createMapping(
         int $excelFormatId, 
         array $columnMapping, 
-        ?array $transformationRules = null,
-        int $departmentId = null,
-        string $mappingName = null,
-        string $description = null
+        ?array $transformationRules = null,  // ✅ SUDAH BENAR
+        ?int $departmentId = null,           // ✅ TAMBAH ? di depan int
+        ?string $mappingName = null,         // ✅ TAMBAH ? di depan string
+        ?string $description = null          // ✅ TAMBAH ? di depan string
     ) {
         $mappingIndex = 'MAP_' . strtoupper(Str::random(8));
 
@@ -34,7 +34,7 @@ class MappingService
         return MappingConfiguration::where('mapping_index', $mappingIndex)->firstOrFail();
     }
 
-    public function getMappingsByFormat(int $excelFormatId, int $departmentId = null)
+    public function getMappingsByFormat(int $excelFormatId, ?int $departmentId = null) // ✅ TAMBAH ?
     {
         $query = MappingConfiguration::where('excel_format_id', $excelFormatId);
         
@@ -53,7 +53,7 @@ class MappingService
             ->get();
     }
 
-    public function findMappingByExcelColumns(int $excelFormatId, array $excelColumns, int $departmentId = null)
+    public function findMappingByExcelColumns(int $excelFormatId, array $excelColumns, ?int $departmentId = null) // ✅ TAMBAH ?
     {
         $normalizedExcelColumns = $this->normalizeColumns($excelColumns);
 

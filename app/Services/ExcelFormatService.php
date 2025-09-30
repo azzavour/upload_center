@@ -41,7 +41,7 @@ class ExcelFormatService
         return ExcelFormat::create($data);
     }
 
-    public function getAllFormats(int $departmentId = null)
+    public function getAllFormats(?int $departmentId = null)
     {
         $query = ExcelFormat::where('is_active', true);
         
@@ -52,7 +52,7 @@ class ExcelFormatService
         return $query->get();
     }
 
-    public function findFormatByCode(string $code, int $departmentId = null)
+    public function findFormatByCode(string $code, ?int $departmentId = null)
     {
         $query = ExcelFormat::where('format_code', $code);
         

@@ -27,8 +27,8 @@ class UploadService
         $file, 
         ExcelFormat $format, 
         ?MappingConfiguration $mapping = null,
-        int $departmentId = null,
-        int $userId = null
+       ?int $departmentId = null,
+?int $userId = null
     ) {
         $originalFilename = $file->getClientOriginalName();
         $storedFilename = time() . '_' . $originalFilename;
@@ -229,7 +229,7 @@ class UploadService
         return $data;
     }
 
-    public function getUploadHistory(int $departmentId = null)
+    public function getUploadHistory(?int $departmentId = null)
     {
         $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader']);
         
@@ -240,7 +240,7 @@ class UploadService
         return $query->orderBy('uploaded_at', 'desc')->get();
     }
 
-    public function getUploadById(int $id, int $departmentId = null)
+    public function getUploadById(int $id, ?int $departmentId = null)
     {
         $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader']);
         

@@ -7,6 +7,7 @@ use App\Services\ExcelFormatService;
 use App\Models\ExcelFormat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth; // ✅ TAMBAHKAN INI
 
 class MappingController extends Controller
 {
@@ -22,7 +23,8 @@ class MappingController extends Controller
 
     public function index()
     {
-        $user = auth()->user();
+        /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
+        $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
         
         if ($user->isAdmin()) {
             $mappings = \App\Models\MappingConfiguration::with('excelFormat', 'department')
@@ -41,7 +43,8 @@ class MappingController extends Controller
         $format = $this->formatService->findFormatById($formatId);
         
         // Cek akses department
-        $user = auth()->user();
+        /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
+        $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
         if (!$user->isAdmin() && $format->department_id !== $user->department_id) {
             abort(403, 'Unauthorized access to this format.');
         }
@@ -82,7 +85,8 @@ class MappingController extends Controller
                 }
             }
 
-            $user = auth()->user();
+            /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
+            $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
             
             $mapping = $this->mappingService->createMapping(
                 $request->excel_format_id,
@@ -108,7 +112,8 @@ class MappingController extends Controller
         $mapping = \App\Models\MappingConfiguration::with('excelFormat', 'department')->findOrFail($id);
         
         // Cek akses
-        $user = auth()->user();
+        /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
+        $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
         if (!$user->isAdmin() && $mapping->department_id !== $user->department_id) {
             abort(403, 'Unauthorized access to this mapping.');
         }
@@ -122,7 +127,8 @@ class MappingController extends Controller
             $mapping = \App\Models\MappingConfiguration::findOrFail($id);
             
             // Cek akses
-            $user = auth()->user();
+            /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
+            $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
             if (!$user->isAdmin() && $mapping->department_id !== $user->department_id) {
                 abort(403, 'Unauthorized access.');
             }

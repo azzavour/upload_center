@@ -6,6 +6,7 @@ use App\Services\UploadService;
 use App\Services\ExcelFormatService;
 use App\Services\MappingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth; // ✅ TAMBAHKAN INI
 use Maatwebsite\Excel\Facades\Excel;
 
 class UploadController extends Controller
@@ -27,7 +28,8 @@ class UploadController extends Controller
 
     public function index()
     {
-        $user = auth()->user();
+        /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
+        $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
         $departmentId = $user->isAdmin() ? null : $user->department_id;
         
         $formats = $this->formatService->getAllFormats($departmentId);
@@ -46,7 +48,8 @@ class UploadController extends Controller
             $format = $this->formatService->findFormatById($request->format_id);
             
             // Cek akses department
-            $user = auth()->user();
+            /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
+            $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
             if (!$user->isAdmin() && $format->department_id !== $user->department_id) {
                 return response()->json(['error' => true, 'message' => 'Unauthorized access to this format'], 403);
             }
@@ -147,7 +150,8 @@ class UploadController extends Controller
         ]);
 
         try {
-            $user = auth()->user();
+            /** @var \App\Models\User $user */ // ✅ TAMBAHKAN INI
+            $user = Auth::user(); // ✅ GANTI auth()->user() JADI Auth::user()
             
             $format = $this->formatService->findFormatById($request->format_id);
             

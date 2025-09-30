@@ -5,8 +5,23 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+
+/**
+ * App\Models\User
+ * 
+ * @property int $id
+ * @property string $name
+ * @property string $email
+ * @property int|null $department_id
+ * @property bool $is_admin
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Department|null $department
+ */
+
 class User extends Authenticatable
 {
+    
     use Notifiable;
 
     protected $fillable = [
@@ -39,18 +54,19 @@ class User extends Authenticatable
     }
 
     // Helper methods
-    public function isAdmin()
-    {
-        return $this->role === 'admin';
-    }
-
     public function isUser()
     {
         return $this->role === 'user';
     }
 
-    public function hasDepartment()
-    {
-        return !is_null($this->department_id);
-    }
+public function hasDepartment(): bool
+{
+    return !is_null($this->department_id);
+}
+
+public function isAdmin(): bool
+{
+    return $this->role === 'admin';  // ← Ganti jadi 'role'
+}
+    
 }

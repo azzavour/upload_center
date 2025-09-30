@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\UploadService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class HistoryController extends Controller
 {
@@ -17,7 +18,7 @@ class HistoryController extends Controller
 
     public function index()
     {
-        $user = auth()->user();
+        $user = Auth::user();
         
         // Admin bisa lihat semua, user hanya lihat department sendiri
         $departmentId = $user->isAdmin() ? null : $user->department_id;
@@ -28,7 +29,7 @@ class HistoryController extends Controller
 
     public function show($id)
     {
-        $user = auth()->user();
+        $user = Auth::user();
         $departmentId = $user->isAdmin() ? null : $user->department_id;
         
         $history = $this->uploadService->getUploadById($id, $departmentId);
