@@ -35,8 +35,7 @@
                             Nama Mapping <span class="text-danger">*</span>
                         </label>
                         <input type="text" name="mapping_name" required class="form-control"
-                            placeholder="Contoh: Mapping Keuangan Tahun 2025">
-                        <small class="text-muted">Berikan nama yang deskriptif untuk mapping ini</small>
+                            placeholder="Contoh: Mapping Data Lagu Spotify 2025">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-bold">Deskripsi</label>
@@ -46,13 +45,6 @@
                 </div>
             </div>
 
-            <!-- Info Box -->
-            <div class="alert alert-info" role="alert">
-                <i class="fas fa-info-circle me-2"></i>
-                Petakan kolom dari file Excel Anda ke kolom database yang sesuai. 
-                <strong>1 Mapping = 1 Tabel Database ({{ $format->target_table }})</strong>
-            </div>
-
             @if(!empty($excelColumns))
             <!-- Excel Columns Detected -->
             <div class="alert alert-success" role="alert">
@@ -60,80 +52,68 @@
                 <strong>Kolom Excel yang Terdeteksi:</strong>
                 <div class="mt-2">
                     @foreach($excelColumns as $col)
-                    <span class="badge bg-success me-1">{{ $col }}</span>
+                    <span class="badge bg-success me-1 mb-1">{{ $col }}</span>
                     @endforeach
                 </div>
             </div>
             @endif
 
             <!-- Mapping Table -->
-            <div class="table-responsive">
-                <table class="table table-bordered">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Kolom Excel</th>
-                            <th class="text-center" width="50"><i class="fas fa-arrow-right"></i></th>
-                            <th>Kolom Database ({{ $format->target_table }})</th>
-                            <th>Transformasi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($format->expected_columns as $dbCol)
-                        @php
-                            // Auto-match helper
-                            $matchedExcel = '';
-                            $normalized = strtolower(str_replace('_', ' ', $dbCol));
-                            foreach ($excelColumns as $excel) {
-                                $excelNorm = strtolower(trim($excel));
-                                if ($excelNorm === $normalized || 
-                                    str_replace(' ', '', $excelNorm) === str_replace(' ', '', $normalized)) {
-                                    $matchedExcel = $excel;
-                                    break;
-                                }
-                            }
-                        @endphp
-                        <tr>
-                            <td>
-                                <input type="text" 
-                                    class="form-control excel-column-input" 
-                                    placeholder="Contoh: {{ ucwords(str_replace('_', ' ', $dbCol)) }}"
-                                    id="excel_{{ $dbCol }}"
-                                    value="{{ $matchedExcel }}">
-                            </td>
-                            <td class="text-center align-middle">
-                                <i class="fas fa-long-arrow-alt-right text-muted"></i>
-                            </td>
-                            <td class="align-middle">
-                                <code class="bg-light p-2 rounded">{{ $dbCol }}</code>
-                            </td>
-                            <td>
-                                <select name="transformation_rules[{{ $dbCol }}][type]" class="form-select form-select-sm">
-                                    <option value="">Tidak Ada</option>
-                                    <option value="trim">Trim (Hapus Spasi)</option>
-                                    <option value="uppercase">UPPERCASE</option>
-                                    <option value="lowercase">lowercase</option>
-                                    <option value="date_format">Format Tanggal</option>
-                                </select>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-table me-2"></i>Pemetaan Kolom
+                    </h6>
+                    <button type="button" onclick="addMappingRow()" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>Tambah Baris
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="mappingTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="40%">Kolom Excel</th>
+                                    <th class="text-center" width="50"><i class="fas fa-arrow-right"></i></th>
+                                    <th width="40%">Kolom Database</th>
+                                    <th width="100">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mappingBody">
+                                <!-- Default row -->
+                                <tr class="mapping-row">
+                                    <td>
+                                        <input type="text" class="form-control excel-column-input" 
+                                            placeholder="Masukkan nama kolom Excel" required>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <i class="fas fa-long-arrow-alt-right text-muted"></i>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control db-column-input" 
+                                            placeholder="Masukkan nama kolom Database" required>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" onclick="removeMappingRow(this)" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
-            <!-- Example Box -->
-            <div class="alert alert-warning" role="alert">
-                <h6 class="alert-heading">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Contoh Mapping
-                </h6>
-                <p class="mb-1"><strong>Jika Excel Anda memiliki kolom:</strong> "id_track", "nama_lagu", "nama_artis"</p>
-                <p class="mb-0"><strong>Maka isi:</strong></p>
-                <ul class="mb-0">
-                    <li>Untuk track_id: ketik "id_track"</li>
-                    <li>Untuk track_name: ketik "nama_lagu"</li>
-                    <li>Untuk artist_name: ketik "nama_artis"</li>
+            <!-- Info Box -->
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-lightbulb me-2"></i>
+                <strong>Tips:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Kolom Excel harus persis sama dengan nama kolom di file Excel Anda (case-sensitive)</li>
+                    <li>Kolom Database akan otomatis dinormalisasi (lowercase, underscore, no special chars)</li>
+                    <li>Target table: <code>{{ $format->target_table }}</code></li>
                 </ul>
-                <p class="mb-0 mt-2 fw-bold">⚠️ Kosongkan kolom yang tidak ada di Excel Anda</p>
             </div>
 
             <!-- Action Buttons -->
@@ -152,18 +132,52 @@
 
 @push('scripts')
 <script>
+function addMappingRow() {
+    const tbody = document.getElementById('mappingBody');
+    const tr = document.createElement('tr');
+    tr.className = 'mapping-row';
+    tr.innerHTML = `
+        <td>
+            <input type="text" class="form-control excel-column-input" 
+                placeholder="Masukkan nama kolom Excel" required>
+        </td>
+        <td class="text-center align-middle">
+            <i class="fas fa-long-arrow-alt-right text-muted"></i>
+        </td>
+        <td>
+            <input type="text" class="form-control db-column-input" 
+                placeholder="Masukkan nama kolom Database" required>
+        </td>
+        <td class="text-center">
+            <button type="button" onclick="removeMappingRow(this)" class="btn btn-sm btn-danger">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+}
+
+function removeMappingRow(button) {
+    const rows = document.querySelectorAll('.mapping-row');
+    if (rows.length > 1) {
+        button.closest('tr').remove();
+    } else {
+        alert('Minimal harus ada satu mapping!');
+    }
+}
+
 document.getElementById('mappingForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
     const columnMapping = {};
-    const inputs = document.querySelectorAll('.excel-column-input');
+    const rows = document.querySelectorAll('.mapping-row');
     
-    inputs.forEach(input => {
-        const dbColumn = input.id.replace('excel_', '');
-        const excelColumn = input.value.trim();
+    rows.forEach(row => {
+        const excelCol = row.querySelector('.excel-column-input').value.trim();
+        const dbCol = row.querySelector('.db-column-input').value.trim();
         
-        if (excelColumn) {
-            columnMapping[excelColumn] = dbColumn;
+        if (excelCol && dbCol) {
+            columnMapping[excelCol] = dbCol;
         }
     });
     
@@ -171,8 +185,6 @@ document.getElementById('mappingForm').addEventListener('submit', function(e) {
         alert('Minimal isi satu mapping kolom!');
         return false;
     }
-    
-    console.log('Column Mapping:', columnMapping);
     
     const hiddenInput = document.createElement('input');
     hiddenInput.type = 'hidden';
