@@ -37,6 +37,11 @@ class UploadService
         ?int $departmentId = null,
         ?int $userId = null
     ) {
+        // Validasi department ID
+        if (!$departmentId) {
+            throw new \Exception('Department ID is required for upload');
+        }
+
         $originalFilename = $file->getClientOriginalName();
         $storedFilename = time() . '_' . $originalFilename;
         
@@ -60,11 +65,29 @@ class UploadService
 
         try {
             $history->update(['status' => 'processing']);
-            $this->importData($path, $format, $mapping, $history, $departmentId);
+            
+            // ✅ PERBAIKAN: Pastikan tabel dengan prefix department dibuat/ada
+            $actualTableName = $this->ensureDepartmentTableExists($format, $departmentId);
+            
+            Log::info('Starting upload process', [
+                'history_id' => $history->id,
+                'base_table' => $format->target_table,
+                'actual_table' => $actualTableName,
+                'department_id' => $departmentId
+            ]);
+            
+            $this->importData($path, $format, $mapping, $history, $departmentId, $actualTableName);
+            
             $history->update(['status' => 'completed']);
             
             // Sinkronisasi ke master data
             $this->masterDataService->syncToMasterData($history);
+            
+            Log::info('Upload completed successfully', [
+                'history_id' => $history->id,
+                'table' => $actualTableName
+            ]);
+            
         } catch (\Exception $e) {
             Log::error('Upload processing error', [
                 'history_id' => $history->id,
@@ -83,8 +106,40 @@ class UploadService
         return $history;
     }
 
-    protected function importData($path, ExcelFormat $format, ?MappingConfiguration $mapping, UploadHistory $history, ?int $departmentId)
+    /**
+     * ✅ BARU: Ensure department-specific table exists
+     */
+    protected function ensureDepartmentTableExists(ExcelFormat $format, int $departmentId): string
     {
+        $actualTableName = $this->tableManager->getActualTableName($format->target_table, $departmentId);
+        
+        // Cek apakah tabel sudah ada
+        if (!$this->tableManager->tableExists($format->target_table, $departmentId)) {
+            Log::info('Creating department table', [
+                'base_table' => $format->target_table,
+                'actual_table' => $actualTableName,
+                'department_id' => $departmentId
+            ]);
+            
+            // Buat tabel baru dengan kolom dari format
+            $this->tableManager->createDynamicTable(
+                $format->target_table,
+                $format->expected_columns,
+                $departmentId
+            );
+        }
+        
+        return $actualTableName;
+    }
+
+    protected function importData(
+        $path, 
+        ExcelFormat $format, 
+        ?MappingConfiguration $mapping, 
+        UploadHistory $history, 
+        ?int $departmentId,
+        string $actualTableName // ✅ BARU: Terima actual table name sebagai parameter
+    ) {
         if (!Storage::exists($path)) {
             throw new \Exception('File ' . $path . ' tidak ditemukan di dalam storage.');
         }
@@ -111,20 +166,24 @@ class UploadService
         $errors = [];
         $warnings = [];
 
-        // Get actual table name dengan department prefix
-        $actualTableName = $this->tableManager->getActualTableName($format->target_table, $departmentId);
-        
-        Log::info('Importing to table', [
+        Log::info('Importing to department table', [
             'base_table' => $format->target_table,
             'actual_table' => $actualTableName,
-            'department_id' => $departmentId
+            'department_id' => $departmentId,
+            'total_rows' => count($rows)
         ]);
 
+        // ✅ PERBAIKAN: Gunakan actual table name
         $validColumns = $this->getTableColumns($actualTableName);
         
         if (empty($validColumns)) {
             throw new \Exception("Tabel {$actualTableName} tidak ditemukan atau tidak memiliki kolom.");
         }
+
+        Log::info('Valid columns for import', [
+            'table' => $actualTableName,
+            'columns' => $validColumns
+        ]);
 
         DB::beginTransaction();
         
@@ -137,6 +196,7 @@ class UploadService
                 try {
                     $rowData = array_combine($headers, array_slice($row, 0, count($headers)));
                     
+                    // Apply mapping jika ada
                     if ($mapping) {
                         $rowData = $this->mappingService->applyMapping($rowData, $mapping->column_mapping);
                         
@@ -145,10 +205,14 @@ class UploadService
                         }
                     }
                     
+                    // Transform data (dates, prices, etc)
                     $rowData = $this->transformTrackData($rowData);
+                    
+                    // ✅ CRITICAL: Add upload_history_id and department_id
                     $rowData['upload_history_id'] = $history->id;
                     $rowData['department_id'] = $departmentId;
 
+                    // Filter only valid columns
                     $originalKeys = array_keys($rowData);
                     $filteredData = array_intersect_key($rowData, array_flip($validColumns));
 
@@ -162,8 +226,13 @@ class UploadService
                     }
 
                     if (!empty($filteredData)) {
+                        // ✅ PERBAIKAN: Insert ke actual table name
                         DB::table($actualTableName)->insert($filteredData);
                         $successCount++;
+                        
+                        if ($successCount % 100 == 0) {
+                            Log::info("Imported {$successCount} rows to {$actualTableName}");
+                        }
                     } else {
                         throw new \Exception('Tidak ada kolom valid untuk di-insert');
                     }
@@ -177,6 +246,7 @@ class UploadService
                     ];
                     
                     Log::warning('Row import failed', [
+                        'table' => $actualTableName,
                         'row_index' => $index + 2,
                         'error' => $e->getMessage()
                     ]);
@@ -185,7 +255,7 @@ class UploadService
             
             DB::commit();
             
-            Log::info('Import completed', [
+            Log::info('Import transaction completed', [
                 'table' => $actualTableName,
                 'total_rows' => count($rows),
                 'success' => $successCount,
@@ -205,6 +275,7 @@ class UploadService
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Import transaction failed', [
+                'table' => $actualTableName,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -230,9 +301,11 @@ class UploadService
 
     protected function transformTrackData(array $data)
     {
+        // Transform release_date
         if (isset($data['release_date']) && !empty($data['release_date'])) {
             try {
                 if (is_numeric($data['release_date'])) {
+                    // Excel serial number
                     $data['release_date'] = Carbon::createFromFormat('Y-m-d', '1900-01-01')
                         ->addDays($data['release_date'] - 2)
                         ->format('Y-m-d');
@@ -244,6 +317,7 @@ class UploadService
             }
         }
         
+        // Transform prices
         if (isset($data['track_price'])) {
             $data['track_price'] = preg_replace('/[^0-9.]/', '', $data['track_price']);
             $data['track_price'] = $data['track_price'] ?: null;
@@ -254,6 +328,7 @@ class UploadService
             $data['collection_price'] = $data['collection_price'] ?: null;
         }
         
+        // Transform country
         if (isset($data['country'])) {
             $data['country'] = strtoupper(substr($data['country'], 0, 10));
         }

@@ -12,19 +12,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class UploadController extends Controller
 {
-    /**
-     * @var UploadService
-     */
     protected $uploadService;
-    
-    /**
-     * @var ExcelFormatService
-     */
     protected $formatService;
-    
-    /**
-     * @var MappingService
-     */
     protected $mappingService;
 
     public function __construct(
@@ -42,15 +31,21 @@ class UploadController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = Auth::user();
+        
+        // ✅ Validasi user memiliki department
+        if (!$user->hasDepartment() && !$user->isAdmin()) {
+            return redirect()->back()->with('error', 'Anda belum terdaftar di department manapun. Hubungi administrator.');
+        }
+        
         $departmentId = $user->isAdmin() ? null : $user->department_id;
         
         $formats = $this->formatService->getAllFormats($departmentId);
+        
         return view('upload.index', compact('formats'));
     }
 
     public function checkFormat(Request $request)
     {
-        // Validasi sederhana berdasarkan extension saja
         $file = $request->file('file');
         
         if (!$file) {
@@ -76,11 +71,17 @@ class UploadController extends Controller
         }
 
         try {
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+            
+            // ✅ Validasi department
+            if (!$user->hasDepartment() && !$user->isAdmin()) {
+                return response()->json(['error' => true, 'message' => 'Anda belum terdaftar di department manapun'], 403);
+            }
+            
             $format = $this->formatService->findFormatById($request->format_id);
             
             // Cek akses department
-            /** @var \App\Models\User $user */
-            $user = Auth::user();
             if (!$user->isAdmin() && $format->department_id !== $user->department_id) {
                 return response()->json(['error' => true, 'message' => 'Unauthorized access to this format'], 403);
             }
@@ -96,7 +97,14 @@ class UploadController extends Controller
                 return response()->json(['error' => true, 'message' => 'File Excel tidak memiliki header'], 400);
             }
 
-            $departmentId = $user->isAdmin() ? null : $user->department_id;
+            $departmentId = $user->isAdmin() ? $format->department_id : $user->department_id;
+            
+            Log::info('Checking format for department', [
+                'format_id' => $format->id,
+                'department_id' => $departmentId,
+                'excel_headers' => $excelHeaders
+            ]);
+            
             $existingMapping = $this->mappingService->findMappingByExcelColumns($format->id, $excelHeaders, $departmentId);
 
             $sampleData = collect($data[0])->slice(1)->take(3)->values()->all();
@@ -165,7 +173,9 @@ class UploadController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('Upload check error: ' . $e->getMessage());
+            Log::error('Upload check error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'error' => true,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
@@ -175,7 +185,6 @@ class UploadController extends Controller
 
     public function upload(Request $request)
     {
-        // Validasi sederhana berdasarkan extension saja
         $file = $request->file('file');
         
         if (!$file) {
@@ -201,6 +210,11 @@ class UploadController extends Controller
             /** @var \App\Models\User $user */
             $user = Auth::user();
             
+            // ✅ Validasi department
+            if (!$user->hasDepartment() && !$user->isAdmin()) {
+                return redirect()->back()->with('error', 'Anda belum terdaftar di department manapun. Hubungi administrator.');
+            }
+            
             $format = $this->formatService->findFormatById($request->format_id);
             
             // Cek akses
@@ -212,18 +226,38 @@ class UploadController extends Controller
                 ? \App\Models\MappingConfiguration::findOrFail($request->mapping_id)
                 : null;
 
+            // ✅ CRITICAL: Pastikan department_id terisi dengan benar
+            $departmentId = $user->isAdmin() ? $format->department_id : $user->department_id;
+            
+            if (!$departmentId) {
+                return redirect()->back()->with('error', 'Department ID tidak valid. Hubungi administrator.');
+            }
+            
+            Log::info('Starting upload process', [
+                'user_id' => $user->id,
+                'user_department_id' => $user->department_id,
+                'format_id' => $format->id,
+                'format_department_id' => $format->department_id,
+                'final_department_id' => $departmentId,
+                'mapping_id' => $mapping?->id
+            ]);
+
             $history = $this->uploadService->processUpload(
                 $request->file('file'),
                 $format,
                 $mapping,
-                $user->department_id,
+                $departmentId, // ✅ Pastikan ini tidak null
                 $user->id
             );
 
             return redirect()->route('history.show', $history->id)
                 ->with('success', 'File berhasil diupload dan diproses!');
+                
         } catch (\Exception $e) {
-            Log::error('Upload error: ' . $e->getMessage());
+            Log::error('Upload error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return redirect()->back()
                 ->with('error', 'Gagal upload file: ' . $e->getMessage());
         }

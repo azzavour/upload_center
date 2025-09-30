@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ExcelFormat;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class ExcelFormatService
 {
@@ -30,15 +31,36 @@ class ExcelFormatService
             );
         }
         
-        // Buat tabel dengan prefix department
+        // ✅ PERBAIKAN: Buat tabel dengan prefix department
         $actualTableName = $this->tableManager->getActualTableName($data['target_table'], $departmentId);
         
+        Log::info('Creating format with table', [
+            'format_name' => $data['format_name'],
+            'base_table' => $data['target_table'],
+            'actual_table' => $actualTableName,
+            'department_id' => $departmentId,
+            'expected_columns' => $data['expected_columns']
+        ]);
+        
+        // Cek apakah tabel sudah ada
         if (!$this->tableManager->tableExists($data['target_table'], $departmentId)) {
+            Log::info('Table does not exist, creating new table', [
+                'table' => $actualTableName
+            ]);
+            
             $this->tableManager->createDynamicTable(
                 $data['target_table'],
                 $data['expected_columns'],
                 $departmentId
             );
+            
+            Log::info('Table created successfully', [
+                'table' => $actualTableName
+            ]);
+        } else {
+            Log::info('Table already exists', [
+                'table' => $actualTableName
+            ]);
         }
         
         return ExcelFormat::create($data);
@@ -52,7 +74,7 @@ class ExcelFormatService
             $query->where('department_id', $departmentId);
         }
         
-        return $query->get();
+        return $query->orderBy('format_name')->get();
     }
 
     public function findFormatByCode(string $code, ?int $departmentId = null)
@@ -82,16 +104,20 @@ class ExcelFormatService
         );
     }
 
-    public function isStandardFormat(array $excelColumns, ExcelFormat $format)
+    /**
+     * ✅ Check if Excel columns match expected format
+     */
+    public function isStandardFormat(array $excelColumns, ExcelFormat $format): bool
     {
         $expectedColumns = $format->expected_columns;
         
+        // Normalize untuk comparison
         $excelColumnsNormalized = array_map(function($col) {
-            return strtolower(trim($col));
+            return $this->tableManager->normalizeColumnName($col);
         }, $excelColumns);
         
         $expectedColumnsNormalized = array_map(function($col) {
-            return strtolower(trim($col));
+            return $this->tableManager->normalizeColumnName($col);
         }, $expectedColumns);
         
         sort($excelColumnsNormalized);
@@ -100,8 +126,28 @@ class ExcelFormatService
         return $excelColumnsNormalized === $expectedColumnsNormalized;
     }
 
-    public function isNewFormat(array $excelColumns, ExcelFormat $format)
+    public function isNewFormat(array $excelColumns, ExcelFormat $format): bool
     {
         return !$this->isStandardFormat($excelColumns, $format);
+    }
+
+    /**
+     * ✅ BARU: Get format dengan validasi department access
+     */
+    public function getFormatWithAccessCheck(int $formatId, ?int $userDepartmentId = null, bool $isAdmin = false): ExcelFormat
+    {
+        $format = $this->findFormatById($formatId);
+        
+        // Admin bisa akses semua format
+        if ($isAdmin) {
+            return $format;
+        }
+        
+        // User hanya bisa akses format dari department sendiri
+        if (!$userDepartmentId || $format->department_id !== $userDepartmentId) {
+            throw new \Exception('Unauthorized access to this format');
+        }
+        
+        return $format;
     }
 }
