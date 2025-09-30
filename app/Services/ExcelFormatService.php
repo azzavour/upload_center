@@ -7,21 +7,60 @@ use Illuminate\Support\Str;
 
 class ExcelFormatService
 {
-    public function createFormat(array $data)
+    protected $tableManager;
+
+    public function __construct(TableManagerService $tableManager)
+    {
+        $this->tableManager = $tableManager;
+    }
+
+    public function createFormat(array $data, int $departmentId)
     {
         $data['format_code'] = $data['format_code'] ?? Str::slug($data['format_name']);
+        $data['department_id'] = $departmentId;
+        
+        // Normalisasi target table
+        $data['target_table'] = $this->tableManager->normalizeTableName($data['target_table']);
+        
+        // Normalisasi expected columns
+        if (isset($data['expected_columns']) && is_array($data['expected_columns'])) {
+            $data['expected_columns'] = array_map(
+                fn($col) => $this->tableManager->normalizeColumnName($col),
+                $data['expected_columns']
+            );
+        }
+        
+        // Buat tabel jika belum ada
+        if (!$this->tableManager->tableExists($data['target_table'])) {
+            $this->tableManager->createDynamicTable(
+                $data['target_table'],
+                $data['expected_columns']
+            );
+        }
         
         return ExcelFormat::create($data);
     }
 
-    public function getAllFormats()
+    public function getAllFormats(int $departmentId = null)
     {
-        return ExcelFormat::where('is_active', true)->get();
+        $query = ExcelFormat::where('is_active', true);
+        
+        if ($departmentId) {
+            $query->where('department_id', $departmentId);
+        }
+        
+        return $query->get();
     }
 
-    public function findFormatByCode(string $code)
+    public function findFormatByCode(string $code, int $departmentId = null)
     {
-        return ExcelFormat::where('format_code', $code)->firstOrFail();
+        $query = ExcelFormat::where('format_code', $code);
+        
+        if ($departmentId) {
+            $query->where('department_id', $departmentId);
+        }
+        
+        return $query->firstOrFail();
     }
 
     public function findFormatById(int $id)
@@ -29,18 +68,10 @@ class ExcelFormatService
         return ExcelFormat::findOrFail($id);
     }
 
-    /**
-     * Cek apakah file Excel menggunakan format standar (sesuai expected_columns)
-     * 
-     * @param array $excelColumns
-     * @param ExcelFormat $format
-     * @return bool
-     */
     public function isStandardFormat(array $excelColumns, ExcelFormat $format)
     {
         $expectedColumns = $format->expected_columns;
         
-        // Normalize kolom (lowercase dan trim)
         $excelColumnsNormalized = array_map(function($col) {
             return strtolower(trim($col));
         }, $excelColumns);
@@ -49,23 +80,14 @@ class ExcelFormatService
             return strtolower(trim($col));
         }, $expectedColumns);
         
-        // Cek apakah kolom Excel sesuai dengan expected columns
         sort($excelColumnsNormalized);
         sort($expectedColumnsNormalized);
         
-        // TRUE jika sama (format standar), FALSE jika beda (butuh mapping)
         return $excelColumnsNormalized === $expectedColumnsNormalized;
     }
 
-    /**
-     * @deprecated Use isStandardFormat() instead
-     * Method lama yang akan dihapus
-     */
     public function isNewFormat(array $excelColumns, ExcelFormat $format)
     {
-        // Kebalikan dari isStandardFormat
-        // TRUE = format baru (butuh mapping)
-        // FALSE = format standar
         return !$this->isStandardFormat($excelColumns, $format);
     }
 }

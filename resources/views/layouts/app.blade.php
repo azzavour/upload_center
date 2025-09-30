@@ -52,6 +52,38 @@
                                 <i class="fas fa-file-excel"></i> Format
                             </a>
                         </li>
+
+                        @if(auth()->user()->isAdmin())
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.*') ? 'active' : '' }}" 
+                                href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-shield-alt text-danger"></i> Admin
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('admin.departments.index') }}">
+                                        <i class="fas fa-building me-2"></i>Departments
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('admin.master-data.index') }}">
+                                        <i class="fas fa-database me-2"></i>Master Data
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('admin.all-uploads') }}">
+                                        <i class="fas fa-cloud-upload-alt me-2"></i>All Uploads
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ route('admin.master-data.duplicates') }}">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Duplicate Tables
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                        @endif
                         @endauth
                     </ul>
 
@@ -77,9 +109,28 @@
                             <li class="nav-item dropdown">
                                 <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-user-circle"></i> {{ Auth::user()->name }}
+                                    @if(Auth::user()->department)
+                                        <span class="badge bg-primary ms-1">{{ Auth::user()->department->code }}</span>
+                                    @endif
                                 </a>
 
                                 <div class="dropdown-menu dropdown-menu-end">
+                                    @if(Auth::user()->isAdmin())
+                                    <div class="dropdown-header">
+                                        <i class="fas fa-crown text-warning me-1"></i>
+                                        <strong>Admin Master</strong>
+                                    </div>
+                                    <div class="dropdown-divider"></div>
+                                    @endif
+                                    
+                                    @if(Auth::user()->department)
+                                    <div class="dropdown-item-text small">
+                                        <i class="fas fa-building me-1"></i>
+                                        {{ Auth::user()->department->name }}
+                                    </div>
+                                    <div class="dropdown-divider"></div>
+                                    @endif
+
                                     <a class="dropdown-item" href="{{ route('logout') }}"
                                        onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                         <i class="fas fa-sign-out-alt"></i> {{ __('Logout') }}

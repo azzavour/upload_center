@@ -12,6 +12,7 @@ class ExcelFormat extends Model
         'description',
         'expected_columns',
         'target_table',
+        'department_id',
         'is_active'
     ];
 
@@ -29,4 +30,9 @@ class ExcelFormat extends Model
     {
         return $this->hasMany(UploadHistory::class);
     }
+
+    public function department()
+{
+    return $this->belongsTo(Department::class);
+}
 }

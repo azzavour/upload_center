@@ -15,15 +15,23 @@ class MappingController extends Controller
 
     public function __construct(MappingService $mappingService, ExcelFormatService $formatService)
     {
+        $this->middleware('auth');
         $this->mappingService = $mappingService;
         $this->formatService = $formatService;
     }
 
     public function index()
     {
-        $mappings = \App\Models\MappingConfiguration::with('excelFormat')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $user = auth()->user();
+        
+        if ($user->isAdmin()) {
+            $mappings = \App\Models\MappingConfiguration::with('excelFormat', 'department')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } else {
+            $mappings = $this->mappingService->getAllMappingsByDepartment($user->department_id);
+        }
+        
         return view('mapping.index', compact('mappings'));
     }
 
@@ -32,7 +40,12 @@ class MappingController extends Controller
         $formatId = $request->query('format_id');
         $format = $this->formatService->findFormatById($formatId);
         
-        // Ambil excel columns dari session jika ada
+        // Cek akses department
+        $user = auth()->user();
+        if (!$user->isAdmin() && $format->department_id !== $user->department_id) {
+            abort(403, 'Unauthorized access to this format.');
+        }
+        
         $excelColumns = session('excel_columns', []);
 
         return view('mapping.create', compact('format', 'excelColumns'));
@@ -40,33 +53,26 @@ class MappingController extends Controller
 
     public function store(Request $request)
     {
-        // Validasi dasar
         $request->validate([
             'excel_format_id' => 'required|exists:excel_formats,id',
+            'mapping_name' => 'required|string|max:255',
+            'description' => 'nullable|string',
             'transformation_rules' => 'nullable|array'
         ]);
 
         try {
-            // Ambil column mapping dari JSON yang dikirim via JavaScript
             $columnMapping = [];
             
             if ($request->has('column_mapping') && is_string($request->column_mapping)) {
                 $columnMapping = json_decode($request->column_mapping, true);
             }
             
-            // Jika JSON decode gagal atau kosong, coba ambil dari form array
-            if (empty($columnMapping)) {
-                Log::warning('Column mapping JSON empty, trying form arrays');
-            }
-            
-            // Validasi column mapping tidak kosong
             if (empty($columnMapping)) {
                 return redirect()->back()
                     ->with('error', 'Column mapping tidak boleh kosong. Minimal isi satu mapping!')
                     ->withInput();
             }
             
-            // Filter transformation rules yang kosong
             $transformationRules = [];
             if ($request->transformation_rules) {
                 foreach ($request->transformation_rules as $field => $rule) {
@@ -76,14 +82,19 @@ class MappingController extends Controller
                 }
             }
 
+            $user = auth()->user();
+            
             $mapping = $this->mappingService->createMapping(
                 $request->excel_format_id,
                 $columnMapping,
-                $transformationRules ?: null
+                $transformationRules ?: null,
+                $user->department_id,
+                $request->mapping_name,
+                $request->description
             );
 
             return redirect()->route('mapping.index')
-                ->with('success', 'Mapping berhasil dibuat! Mapping Index: ' . $mapping->mapping_index);
+                ->with('success', 'Mapping "' . $mapping->mapping_name . '" berhasil dibuat! Index: ' . $mapping->mapping_index);
         } catch (\Exception $e) {
             Log::error('Mapping creation error: ' . $e->getMessage());
             return redirect()->back()
@@ -94,7 +105,14 @@ class MappingController extends Controller
 
     public function show($id)
     {
-        $mapping = \App\Models\MappingConfiguration::with('excelFormat')->findOrFail($id);
+        $mapping = \App\Models\MappingConfiguration::with('excelFormat', 'department')->findOrFail($id);
+        
+        // Cek akses
+        $user = auth()->user();
+        if (!$user->isAdmin() && $mapping->department_id !== $user->department_id) {
+            abort(403, 'Unauthorized access to this mapping.');
+        }
+        
         return view('mapping.show', compact('mapping'));
     }
 
@@ -102,9 +120,15 @@ class MappingController extends Controller
     {
         try {
             $mapping = \App\Models\MappingConfiguration::findOrFail($id);
+            
+            // Cek akses
+            $user = auth()->user();
+            if (!$user->isAdmin() && $mapping->department_id !== $user->department_id) {
+                abort(403, 'Unauthorized access.');
+            }
+            
             $mappingIndex = $mapping->mapping_index;
             
-            // Cek apakah mapping sedang digunakan di upload history
             $usageCount = \App\Models\UploadHistory::where('mapping_configuration_id', $id)->count();
             
             if ($usageCount > 0) {

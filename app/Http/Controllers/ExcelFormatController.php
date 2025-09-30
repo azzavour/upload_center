@@ -11,12 +11,16 @@ class ExcelFormatController extends Controller
 
     public function __construct(ExcelFormatService $formatService)
     {
+        $this->middleware('auth');
         $this->formatService = $formatService;
     }
 
     public function index()
     {
-        $formats = $this->formatService->getAllFormats();
+        $user = auth()->user();
+        $departmentId = $user->isAdmin() ? null : $user->department_id;
+        
+        $formats = $this->formatService->getAllFormats($departmentId);
         return view('formats.index', compact('formats'));
     }
 
@@ -35,9 +39,19 @@ class ExcelFormatController extends Controller
             'target_table' => 'required|string'
         ]);
 
-        $format = $this->formatService->createFormat($validated);
+        $user = auth()->user();
+        
+        if (!$user->hasDepartment() && !$user->isAdmin()) {
+            return redirect()->back()
+                ->with('error', 'Anda belum terdaftar di department manapun.');
+        }
+
+        $format = $this->formatService->createFormat(
+            $validated, 
+            $user->department_id
+        );
 
         return redirect()->route('formats.index')
-            ->with('success', 'Format berhasil didaftarkan!');
+            ->with('success', 'Format berhasil didaftarkan! Tabel "' . $format->target_table . '" telah dibuat.');
     }
 }

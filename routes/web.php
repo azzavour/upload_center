@@ -1,33 +1,65 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ExcelFormatController;
+use App\Http\Controllers\UploadController;
 use App\Http\Controllers\MappingController;
 use App\Http\Controllers\HistoryController;
-use App\Http\Controllers\UploadController;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\AdminMasterController;
 
-// Rute untuk autentikasi (Login, Register, dll.)
+Route::get('/', function () {
+    return view('welcome');
+});
+
 Auth::routes();
 
-// Halaman utama akan langsung mengarahkan ke halaman upload jika sudah login,
-// atau ke halaman login jika belum.
-Route::get('/', function () {
-    return redirect()->route('upload.index');
-})->middleware('auth');
-
-// Grup rute yang hanya bisa diakses setelah login
 Route::middleware(['auth'])->group(function () {
-    Route::get('/upload', [UploadController::class, 'index'])->name('upload.index');
-    Route::post('/upload/check', [UploadController::class, 'checkFormat'])->name('upload.check');
-    Route::post('/upload/process', [UploadController::class, 'upload'])->name('upload.process'); // FIXED: processUpload -> upload
-    
-    Route::resource('formats', ExcelFormatController::class);
-    Route::resource('mapping', MappingController::class);
-    Route::resource('history', HistoryController::class);
+    Route::get('/home', [HomeController::class, 'index'])->name('home');
 
-    // Default home route dari Laravel, kita arahkan juga ke upload
-    Route::get('/home', function () {
-        return redirect()->route('upload.index');
-    })->name('home');
+    // Format Excel Routes
+    Route::prefix('formats')->name('formats.')->group(function () {
+        Route::get('/', [ExcelFormatController::class, 'index'])->name('index');
+        Route::get('/create', [ExcelFormatController::class, 'create'])->name('create');
+        Route::post('/', [ExcelFormatController::class, 'store'])->name('store');
+    });
+
+    // Upload Routes
+    Route::prefix('upload')->name('upload.')->group(function () {
+        Route::get('/', [UploadController::class, 'index'])->name('index');
+        Route::post('/check', [UploadController::class, 'checkFormat'])->name('check');
+        Route::post('/process', [UploadController::class, 'upload'])->name('process');
+    });
+
+    // Mapping Routes
+    Route::prefix('mapping')->name('mapping.')->group(function () {
+        Route::get('/', [MappingController::class, 'index'])->name('index');
+        Route::get('/create', [MappingController::class, 'create'])->name('create');
+        Route::post('/', [MappingController::class, 'store'])->name('store');
+        Route::get('/{id}', [MappingController::class, 'show'])->name('show');
+        Route::delete('/{id}', [MappingController::class, 'destroy'])->name('destroy');
+    });
+
+    // History Routes
+    Route::prefix('history')->name('history.')->group(function () {
+        Route::get('/', [HistoryController::class, 'index'])->name('index');
+        Route::get('/{id}', [HistoryController::class, 'show'])->name('show');
+    });
+});
+
+// Admin Only Routes
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Department Management
+    Route::resource('departments', DepartmentController::class);
+
+    // Master Data
+    Route::prefix('master-data')->name('master-data.')->group(function () {
+        Route::get('/', [AdminMasterController::class, 'index'])->name('index');
+        Route::get('/export', [AdminMasterController::class, 'export'])->name('export');
+        Route::get('/duplicates', [AdminMasterController::class, 'detectDuplicates'])->name('duplicates');
+    });
+
+    // All Uploads (Admin View)
+    Route::get('/all-uploads', [AdminMasterController::class, 'allUploads'])->name('all-uploads');
 });

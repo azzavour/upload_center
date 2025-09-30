@@ -13,42 +13,51 @@ use Carbon\Carbon;
 class UploadService
 {
     protected $mappingService;
+    protected $masterDataService;
 
-    public function __construct(MappingService $mappingService)
-    {
+    public function __construct(
+        MappingService $mappingService,
+        MasterDataService $masterDataService
+    ) {
         $this->mappingService = $mappingService;
+        $this->masterDataService = $masterDataService;
     }
 
-    public function processUpload($file, ExcelFormat $format, ?MappingConfiguration $mapping = null)
-    {
+    public function processUpload(
+        $file, 
+        ExcelFormat $format, 
+        ?MappingConfiguration $mapping = null,
+        int $departmentId = null,
+        int $userId = null
+    ) {
         $originalFilename = $file->getClientOriginalName();
         $storedFilename = time() . '_' . $originalFilename;
         
-        // PASTIKAN folder uploads ada
         $uploadDir = storage_path('app/uploads');
         if (!file_exists($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
         
-        // Simpan file
         $path = $file->storeAs('uploads', $storedFilename);
 
-        // Buat history record
         $history = UploadHistory::create([
             'excel_format_id' => $format->id,
             'mapping_configuration_id' => $mapping?->id,
+            'department_id' => $departmentId,
+            'uploaded_by' => $userId,
             'original_filename' => $originalFilename,
             'stored_filename' => $storedFilename,
             'status' => 'pending',
-            'uploaded_at' => now(),
-            'uploaded_by' => null
+            'uploaded_at' => now()
         ]);
 
-        // Process data
         try {
             $history->update(['status' => 'processing']);
             $this->importData($path, $format, $mapping, $history);
             $history->update(['status' => 'completed']);
+            
+            // Sinkronisasi ke master data
+            $this->masterDataService->syncToMasterData($history);
         } catch (\Exception $e) {
             $history->update([
                 'status' => 'failed',
@@ -63,14 +72,9 @@ class UploadService
 
     protected function importData($path, ExcelFormat $format, ?MappingConfiguration $mapping, UploadHistory $history)
     {
-        // $path from storeAs() is relative to the storage disk root.
-        // Maatwebsite/Excel can resolve this path automatically using the default disk.
-            if (!Storage::exists($path)) {
-            // We can throw a more specific exception if needed.
+        if (!Storage::exists($path)) {
             throw new \Exception('File ' . $path . ' tidak ditemukan di dalam storage.');
         }
-
-        $data = Excel::toArray([], $path);
 
         $data = Excel::toArray([], $path);
         $rows = $data[0];
@@ -83,13 +87,9 @@ class UploadService
         $successCount = 0;
         $failedCount = 0;
         $errors = [];
-        $warnings = []; // <-- tambahan untuk catat warning
+        $warnings = [];
 
-        // Ambil kolom valid dari tabel target (sekali saja)
         $validColumns = $this->getTableColumns($format->target_table);
-
-        // Kolom wajib (sesuaikan dengan kebutuhan bisnismu)
-        $requiredColumns = ['track_id', 'track_name', 'artist_id', 'artist_name'];
 
         DB::beginTransaction();
         
@@ -113,25 +113,18 @@ class UploadService
                     $rowData = $this->transformTrackData($rowData);
                     $rowData['upload_history_id'] = $history->id;
 
-                    // === PERUBAHAN UTAMA DI SINI ===
                     $originalKeys = array_keys($rowData);
                     $filteredData = array_intersect_key($rowData, array_flip($validColumns));
 
-                    // Cek kolom wajib yang hilang
-                    $missingRequired = array_diff($requiredColumns, array_keys($filteredData));
-                    // Cek kolom berlebih yang diabaikan
                     $ignoredColumns = array_diff($originalKeys, $validColumns);
 
-                    // Catat warning jika ada
-                    if (!empty($missingRequired) || !empty($ignoredColumns)) {
+                    if (!empty($ignoredColumns)) {
                         $warnings[] = [
                             'row' => $index + 2,
-                            'missing_required' => array_values($missingRequired),
                             'ignored_columns' => array_values($ignoredColumns)
                         ];
                     }
 
-                    // Insert hanya jika ada data valid
                     if (!empty($filteredData)) {
                         DB::table($format->target_table)->insert($filteredData);
                         $successCount++;
@@ -151,7 +144,6 @@ class UploadService
             
             DB::commit();
             
-            // Gabungkan errors dan warnings dalam error_details
             $history->update([
                 'total_rows' => count($rows),
                 'success_rows' => $successCount,
@@ -169,12 +161,11 @@ class UploadService
     }
 
     protected function getTableColumns(string $tableName): array
-{
-    // PostgreSQL: table_name di information_schema selalu lowercase
-    $lowerTableName = strtolower($tableName);
-    $columns = DB::select("SELECT column_name FROM information_schema.columns WHERE table_name = ?", [$lowerTableName]);
-    return collect($columns)->pluck('column_name')->toArray();
-}
+    {
+        $lowerTableName = strtolower($tableName);
+        $columns = DB::select("SELECT column_name FROM information_schema.columns WHERE table_name = ?", [$lowerTableName]);
+        return collect($columns)->pluck('column_name')->toArray();
+    }
 
     protected function transformTrackData(array $data)
     {
@@ -238,16 +229,25 @@ class UploadService
         return $data;
     }
 
-    public function getUploadHistory()
+    public function getUploadHistory(int $departmentId = null)
     {
-        return UploadHistory::with(['excelFormat', 'mappingConfiguration'])
-            ->orderBy('uploaded_at', 'desc')
-            ->get();
+        $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader']);
+        
+        if ($departmentId) {
+            $query->where('department_id', $departmentId);
+        }
+        
+        return $query->orderBy('uploaded_at', 'desc')->get();
     }
 
-    public function getUploadById(int $id)
+    public function getUploadById(int $id, int $departmentId = null)
     {
-        return UploadHistory::with(['excelFormat', 'mappingConfiguration'])
-            ->findOrFail($id);
+        $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader']);
+        
+        if ($departmentId) {
+            $query->where('department_id', $departmentId);
+        }
+        
+        return $query->findOrFail($id);
     }
 }

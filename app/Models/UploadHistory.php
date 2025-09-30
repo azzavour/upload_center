@@ -9,6 +9,8 @@ class UploadHistory extends Model
     protected $fillable = [
         'excel_format_id',
         'mapping_configuration_id',
+        'department_id', 
+        'uploaded_by',
         'original_filename',
         'stored_filename',
         'total_rows',
@@ -34,4 +36,14 @@ class UploadHistory extends Model
     {
         return $this->belongsTo(MappingConfiguration::class);
     }
+
+    public function department()
+{
+    return $this->belongsTo(Department::class);
+}
+
+public function uploader()
+{
+    return $this->belongsTo(User::class, 'uploaded_by');
+}
 }

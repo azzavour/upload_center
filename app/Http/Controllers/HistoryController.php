@@ -11,18 +11,27 @@ class HistoryController extends Controller
 
     public function __construct(UploadService $uploadService)
     {
+        $this->middleware('auth');
         $this->uploadService = $uploadService;
     }
 
     public function index()
     {
-        $histories = $this->uploadService->getUploadHistory();
+        $user = auth()->user();
+        
+        // Admin bisa lihat semua, user hanya lihat department sendiri
+        $departmentId = $user->isAdmin() ? null : $user->department_id;
+        
+        $histories = $this->uploadService->getUploadHistory($departmentId);
         return view('history.index', compact('histories'));
     }
 
     public function show($id)
     {
-        $history = $this->uploadService->getUploadById($id);
+        $user = auth()->user();
+        $departmentId = $user->isAdmin() ? null : $user->department_id;
+        
+        $history = $this->uploadService->getUploadById($id, $departmentId);
         return view('history.show', compact('history'));
     }
 }

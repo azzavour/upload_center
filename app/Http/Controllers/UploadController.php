@@ -7,7 +7,6 @@ use App\Services\ExcelFormatService;
 use App\Services\MappingService;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\Schema;
 
 class UploadController extends Controller
 {
@@ -20,6 +19,7 @@ class UploadController extends Controller
         ExcelFormatService $formatService,
         MappingService $mappingService
     ) {
+        $this->middleware('auth');
         $this->uploadService = $uploadService;
         $this->formatService = $formatService;
         $this->mappingService = $mappingService;
@@ -27,122 +27,116 @@ class UploadController extends Controller
 
     public function index()
     {
-        $formats = $this->formatService->getAllFormats();
+        $user = auth()->user();
+        $departmentId = $user->isAdmin() ? null : $user->department_id;
+        
+        $formats = $this->formatService->getAllFormats($departmentId);
         return view('upload.index', compact('formats'));
     }
 
+    public function checkFormat(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:10240',
+            'format_id' => 'required|exists:excel_formats,id'
+        ]);
 
-public function checkFormat(Request $request)
-{
-    $request->validate([
-        'file' => 'required|mimes:xlsx,xls,csv|max:10240',
-        'format_id' => 'required|exists:excel_formats,id'
-    ]);
-
-    try {
-        $file = $request->file('file');
-        $format = $this->formatService->findFormatById($request->format_id);
-
-        // --- Validasi dan Pembacaan Header (dari kode Anda) ---
-        $data = Excel::toArray([], $file);
-        if (empty($data) || empty($data[0])) {
-            return response()->json(['error' => true, 'message' => 'File Excel kosong atau tidak valid'], 400);
-        }
-        
-        // Normalisasi header (dari kode Anda, ini sudah bagus)
-        $excelHeaders = collect($data[0][0] ?? [])->map(fn($h) => trim($h))->filter()->values()->all();
-
-        if (empty($excelHeaders)) {
-            return response()->json(['error' => true, 'message' => 'File Excel tidak memiliki header'], 400);
-        }
-
-        // --- Logika Inti (Gabungan) ---
-
-        // Cek mapping yang sudah ada
-        $existingMapping = $this->mappingService->findMappingByExcelColumns($format->id, $excelHeaders);
-
-        // Apapun hasilnya (ada mapping, standar, atau baru), kita siapkan data pratinjau
-        // Ambil 3 baris data pertama sebagai sampel (baris 2, 3, 4 di Excel)
-        $sampleData = collect($data[0])->slice(1)->take(3)->values()->all();
-
-        // Siapkan variabel untuk analisis header
-        $headerAnalysis = [];
-        $mappingToUse = $existingMapping ? $existingMapping->column_mapping : [];
-
-        // Jika tidak ada mapping custom, coba gunakan format standar sebagai dasar analisis
-        if (empty($mappingToUse) && $this->formatService->isStandardFormat($excelHeaders, $format)) {
-            foreach ($format->expected_columns as $col) {
-                $mappingToUse[$col] = $col;
+        try {
+            $file = $request->file('file');
+            $format = $this->formatService->findFormatById($request->format_id);
+            
+            // Cek akses department
+            $user = auth()->user();
+            if (!$user->isAdmin() && $format->department_id !== $user->department_id) {
+                return response()->json(['error' => true, 'message' => 'Unauthorized access to this format'], 403);
             }
-        }
-        
-        // Lakukan analisis header berdasarkan mapping yang akan digunakan
-        foreach ($excelHeaders as $index => $header) {
-            $dbColumn = collect($mappingToUse)->search(function ($dbCol, $excelCol) use ($header) {
-                return strtolower(trim($excelCol)) === strtolower($header);
-            });
 
-            if ($dbColumn !== false) {
-                $headerAnalysis[] = [
-                    'name' => $header,
-                    'status' => 'mapped',
-                    'mapped_to' => $mappingToUse[$dbColumn]
-                ];
-            } else {
-                $headerAnalysis[] = [
-                    'name' => $header,
-                    'status' => 'ignored',
-                    'mapped_to' => null
-                ];
+            $data = Excel::toArray([], $file);
+            if (empty($data) || empty($data[0])) {
+                return response()->json(['error' => true, 'message' => 'File Excel kosong atau tidak valid'], 400);
             }
-        }
-        
-        // Buat data pratinjau untuk dikirim ke frontend
-        $previewPayload = [
-            'headers' => $headerAnalysis,
-            'data' => $sampleData
-        ];
+            
+            $excelHeaders = collect($data[0][0] ?? [])->map(fn($h) => trim($h))->filter()->values()->all();
 
-        // --- Kondisi dan Respons (dari kode Anda, dengan penambahan data pratinjau) ---
+            if (empty($excelHeaders)) {
+                return response()->json(['error' => true, 'message' => 'File Excel tidak memiliki header'], 400);
+            }
 
-        if ($existingMapping) {
+            $departmentId = $user->isAdmin() ? null : $user->department_id;
+            $existingMapping = $this->mappingService->findMappingByExcelColumns($format->id, $excelHeaders, $departmentId);
+
+            $sampleData = collect($data[0])->slice(1)->take(3)->values()->all();
+
+            $headerAnalysis = [];
+            $mappingToUse = $existingMapping ? $existingMapping->column_mapping : [];
+
+            if (empty($mappingToUse) && $this->formatService->isStandardFormat($excelHeaders, $format)) {
+                foreach ($format->expected_columns as $col) {
+                    $mappingToUse[$col] = $col;
+                }
+            }
+            
+            foreach ($excelHeaders as $index => $header) {
+                $dbColumn = collect($mappingToUse)->search(function ($dbCol, $excelCol) use ($header) {
+                    return strtolower(trim($excelCol)) === strtolower($header);
+                });
+
+                if ($dbColumn !== false) {
+                    $headerAnalysis[] = [
+                        'name' => $header,
+                        'status' => 'mapped',
+                        'mapped_to' => $mappingToUse[$dbColumn]
+                    ];
+                } else {
+                    $headerAnalysis[] = [
+                        'name' => $header,
+                        'status' => 'ignored',
+                        'mapped_to' => null
+                    ];
+                }
+            }
+            
+            $previewPayload = [
+                'headers' => $headerAnalysis,
+                'data' => $sampleData
+            ];
+
+            if ($existingMapping) {
+                return response()->json([
+                    'is_new_format' => false,
+                    'has_mapping' => true,
+                    'mapping_id' => $existingMapping->id,
+                    'can_proceed' => true,
+                    'message' => 'Format file valid dan mapping "' . $existingMapping->mapping_name . '" ditemukan.',
+                    'preview' => $previewPayload
+                ], 200);
+            }
+
+            if ($this->formatService->isStandardFormat($excelHeaders, $format)) {
+                return response()->json([
+                    'is_new_format' => false,
+                    'has_mapping' => false,
+                    'can_proceed' => true,
+                    'message' => 'Format standar terdeteksi. Silakan periksa pratinjau sebelum melanjutkan.',
+                    'preview' => $previewPayload
+                ], 200);
+            }
+
+            session(['excel_columns' => $excelHeaders]);
+
             return response()->json([
-                'is_new_format' => false,
-                'has_mapping' => true,
-                'mapping_id' => $existingMapping->id,
-                'can_proceed' => true,
-                'message' => 'Format file valid dan mapping yang cocok ditemukan.',
-                'preview' => $previewPayload // Tambahkan ini
+                'is_new_format' => true,
+                'message' => 'Format baru terdeteksi. Anda akan diarahkan untuk membuat mapping.',
+                'redirect' => route('mapping.create', ['format_id' => $format->id])
             ], 200);
-        }
 
-        if ($this->formatService->isStandardFormat($excelHeaders, $format)) {
+        } catch (\Exception $e) {
             return response()->json([
-                'is_new_format' => false,
-                'has_mapping' => false,
-                'can_proceed' => true,
-                'message' => 'Format standar terdeteksi. Silakan periksa pratinjau sebelum melanjutkan.',
-                'preview' => $previewPayload // Tambahkan ini
-            ], 200);
+                'error' => true,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Format baru, perlu buat mapping
-        session(['excel_columns' => $excelHeaders]);
-
-        return response()->json([
-            'is_new_format' => true,
-            'message' => 'Format baru terdeteksi. Anda akan diarahkan untuk membuat mapping.',
-            'redirect' => route('mapping.create', ['format_id' => $format->id])
-            // Pratinjau tidak dikirim di sini karena akan dialihkan
-        ], 200);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => true,
-            'message' => 'Terjadi kesalahan: ' . $e->getMessage()
-        ], 500);
     }
-}
 
     public function upload(Request $request)
     {
@@ -153,7 +147,15 @@ public function checkFormat(Request $request)
         ]);
 
         try {
+            $user = auth()->user();
+            
             $format = $this->formatService->findFormatById($request->format_id);
+            
+            // Cek akses
+            if (!$user->isAdmin() && $format->department_id !== $user->department_id) {
+                return redirect()->back()->with('error', 'Unauthorized access.');
+            }
+            
             $mapping = $request->mapping_id 
                 ? \App\Models\MappingConfiguration::findOrFail($request->mapping_id)
                 : null;
@@ -161,7 +163,9 @@ public function checkFormat(Request $request)
             $history = $this->uploadService->processUpload(
                 $request->file('file'),
                 $format,
-                $mapping
+                $mapping,
+                $user->department_id,
+                $user->id
             );
 
             return redirect()->route('history.show', $history->id)

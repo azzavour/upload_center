@@ -24,6 +24,28 @@
             @csrf
             <input type="hidden" name="excel_format_id" value="{{ $format->id }}">
 
+            <!-- Mapping Name & Description -->
+            <div class="alert alert-primary" role="alert">
+                <h6 class="alert-heading">
+                    <i class="fas fa-tag me-2"></i>Informasi Mapping
+                </h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">
+                            Nama Mapping <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="mapping_name" required class="form-control"
+                            placeholder="Contoh: Mapping Keuangan Tahun 2025">
+                        <small class="text-muted">Berikan nama yang deskriptif untuk mapping ini</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Deskripsi</label>
+                        <textarea name="description" rows="2" class="form-control"
+                            placeholder="Deskripsi singkat (opsional)"></textarea>
+                    </div>
+                </div>
+            </div>
+
             <!-- Info Box -->
             <div class="alert alert-info" role="alert">
                 <i class="fas fa-info-circle me-2"></i>
@@ -51,55 +73,38 @@
                         <tr>
                             <th>Kolom Excel</th>
                             <th class="text-center" width="50"><i class="fas fa-arrow-right"></i></th>
-                            <th>Kolom Database</th>
+                            <th>Kolom Database ({{ $format->target_table }})</th>
                             <th>Transformasi</th>
                         </tr>
                     </thead>
                     <tbody>
+                        @foreach($format->expected_columns as $dbCol)
                         @php
-                            $dbColumns = [
-                                'track_id' => 'Track ID (Required)',
-                                'track_name' => 'Track Name (Required)',
-                                'artist_id' => 'Artist ID (Required)',
-                                'artist_name' => 'Artist Name (Required)',
-                                'album_name' => 'Album Name',
-                                'genre' => 'Genre',
-                                'release_date' => 'Release Date',
-                                'track_price' => 'Track Price',
-                                'collection_price' => 'Collection Price',
-                                'country' => 'Country',
-                                'currency' => 'Currency'
-                            ];
-                            
                             // Auto-match helper
-                            function findMatch($dbCol, $excelColumns) {
-                                $normalized = strtolower(str_replace('_', ' ', $dbCol));
-                                foreach ($excelColumns as $excel) {
-                                    $excelNorm = strtolower(trim($excel));
-                                    if ($excelNorm === $normalized || 
-                                        str_replace(' ', '', $excelNorm) === str_replace(' ', '', $normalized)) {
-                                        return $excel;
-                                    }
+                            $matchedExcel = '';
+                            $normalized = strtolower(str_replace('_', ' ', $dbCol));
+                            foreach ($excelColumns as $excel) {
+                                $excelNorm = strtolower(trim($excel));
+                                if ($excelNorm === $normalized || 
+                                    str_replace(' ', '', $excelNorm) === str_replace(' ', '', $normalized)) {
+                                    $matchedExcel = $excel;
+                                    break;
                                 }
-                                return '';
                             }
                         @endphp
-
-                        @foreach($dbColumns as $dbCol => $label)
                         <tr>
                             <td>
                                 <input type="text" 
                                     class="form-control excel-column-input" 
                                     placeholder="Contoh: {{ ucwords(str_replace('_', ' ', $dbCol)) }}"
                                     id="excel_{{ $dbCol }}"
-                                    value="{{ findMatch($dbCol, $excelColumns) }}">
+                                    value="{{ $matchedExcel }}">
                             </td>
                             <td class="text-center align-middle">
                                 <i class="fas fa-long-arrow-alt-right text-muted"></i>
                             </td>
                             <td class="align-middle">
                                 <code class="bg-light p-2 rounded">{{ $dbCol }}</code>
-                                <small class="text-muted ms-2">{{ $label }}</small>
                             </td>
                             <td>
                                 <select name="transformation_rules[{{ $dbCol }}][type]" class="form-select form-select-sm">
@@ -107,9 +112,7 @@
                                     <option value="trim">Trim (Hapus Spasi)</option>
                                     <option value="uppercase">UPPERCASE</option>
                                     <option value="lowercase">lowercase</option>
-                                    @if($dbCol === 'release_date')
                                     <option value="date_format">Format Tanggal</option>
-                                    @endif
                                 </select>
                             </td>
                         </tr>
@@ -169,16 +172,14 @@ document.getElementById('mappingForm').addEventListener('submit', function(e) {
         return false;
     }
     
-    console.log('Column Mapping:', columnMapping); // Debug
+    console.log('Column Mapping:', columnMapping);
     
-    // Tambahkan hidden input untuk column mapping
     const hiddenInput = document.createElement('input');
     hiddenInput.type = 'hidden';
     hiddenInput.name = 'column_mapping';
     hiddenInput.value = JSON.stringify(columnMapping);
     this.appendChild(hiddenInput);
     
-    // Submit form
     this.submit();
 });
 </script>

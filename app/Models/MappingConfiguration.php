@@ -9,6 +9,9 @@ class MappingConfiguration extends Model
     protected $fillable = [
         'excel_format_id',
         'mapping_index',
+        'mapping_name', 
+        'description', 
+        'department_id', 
         'column_mapping',
         'transformation_rules'
     ];
@@ -27,4 +30,10 @@ class MappingConfiguration extends Model
     {
         return $this->hasMany(UploadHistory::class);
     }
+
+    public function department()
+{
+    return $this->belongsTo(Department::class);
+}
+
 }
