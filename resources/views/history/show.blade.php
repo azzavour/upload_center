@@ -229,35 +229,50 @@
 
 @push('scripts')
 <script>
-// Auto-expand tabel jika ada parameter page di URL (artinya user navigasi pagination)
 document.addEventListener('DOMContentLoaded', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasPageParam = urlParams.has('page');
-    
-    if (hasPageParam) {
-        // Auto-expand collapse jika ada pagination
-        const tableData = document.getElementById('tableData');
-        if (tableData) {
-            const bsCollapse = new bootstrap.Collapse(tableData, {
-                toggle: false
-            });
-            bsCollapse.show();
-        }
-    }
-    
-    // Update tombol text saat collapse state berubah
     const tableData = document.getElementById('tableData');
     const toggleBtn = document.querySelector('[data-bs-target="#tableData"]');
     
-    if (tableData && toggleBtn) {
-        tableData.addEventListener('show.bs.collapse', function () {
-            toggleBtn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Sembunyikan Tabel';
-        });
+    if (!tableData || !toggleBtn) return;
+    
+    // Check if user navigated via pagination
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasPageParam = urlParams.has('page');
+    
+    // Auto-expand if pagination exists OR if table was previously opened
+    const wasExpanded = sessionStorage.getItem('tableDataExpanded') === 'true';
+    const shouldExpand = hasPageParam || wasExpanded;
+    
+    console.log('Page param:', hasPageParam, 'Was expanded:', wasExpanded, 'Should expand:', shouldExpand);
+    
+    if (shouldExpand) {
+        // Direct DOM manipulation - more reliable
+        tableData.classList.add('show');
+        toggleBtn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Sembunyikan Tabel';
         
-        tableData.addEventListener('hide.bs.collapse', function () {
-            toggleBtn.innerHTML = '<i class="fas fa-eye me-1"></i>Tampilkan Tabel';
-        });
+        // Also set sessionStorage
+        sessionStorage.setItem('tableDataExpanded', 'true');
     }
+    
+    // Track collapse state
+    tableData.addEventListener('show.bs.collapse', function () {
+        sessionStorage.setItem('tableDataExpanded', 'true');
+        toggleBtn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Sembunyikan Tabel';
+    });
+    
+    tableData.addEventListener('hide.bs.collapse', function () {
+        sessionStorage.removeItem('tableDataExpanded');
+        toggleBtn.innerHTML = '<i class="fas fa-eye me-1"></i>Tampilkan Tabel';
+    });
+    
+    // Handle pagination clicks - set flag before navigation
+    document.querySelectorAll('.pagination a').forEach(link => {
+        link.addEventListener('click', function() {
+            if (tableData.classList.contains('show')) {
+                sessionStorage.setItem('tableDataExpanded', 'true');
+            }
+        });
+    });
 });
 </script>
 @endpush
