@@ -8,7 +8,7 @@ use App\Http\Controllers\MappingController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\AdminMasterController;
-use App\Http\Controllers\DepartmentUploadController;
+use App\Http\Controllers\DepartmentUploadsController;
 use App\Http\Controllers\Admin\UserActivityController;
 
 Route::get('/', function () {
@@ -29,9 +29,9 @@ Route::middleware(['auth'])->group(function () {
 
     // ✅ GANTI: Department Upload Routes (dulu my-uploads)
     Route::prefix('department-uploads')->name('department-uploads.')->group(function () {
-        Route::get('/', [DepartmentUploadController::class, 'index'])->name('index');
-        Route::get('/stats', [DepartmentUploadController::class, 'stats'])->name('stats');
-        Route::get('/download/{id}', [DepartmentUploadController::class, 'download'])->name('download');
+        Route::get('/', [DepartmentUploadsController::class, 'index'])->name('index');
+        Route::get('/stats', [DepartmentUploadsController::class, 'stats'])->name('stats');
+        Route::get('/download/{id}', [DepartmentUploadsController::class, 'download'])->name('download');
     });
 
     // Upload Routes

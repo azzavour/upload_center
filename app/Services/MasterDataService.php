@@ -53,14 +53,28 @@ class MasterDataService
             'count' => $data->count()
         ]);
 
-        // Batch insert ke master_data
+        // ✅ CRITICAL FIX: Convert object to array dan handle datetime properly
         $masterRecords = [];
         foreach ($data as $row) {
+            // Convert stdClass object to array
+            $rowArray = (array) $row;
+            
+            // ✅ FIX: Format datetime fields properly sebelum json_encode
+            if (isset($rowArray['created_at'])) {
+                $rowArray['created_at'] = $this->formatDatetime($rowArray['created_at']);
+            }
+            if (isset($rowArray['updated_at'])) {
+                $rowArray['updated_at'] = $this->formatDatetime($rowArray['updated_at']);
+            }
+            
+            // Remove binary/non-serializable data jika ada
+            $cleanedRow = $this->cleanRowData($rowArray);
+            
             $masterRecords[] = [
                 'department_id' => $departmentId,
                 'upload_history_id' => $history->id,
-                'source_table' => $actualTableName, // ✅ Simpan actual table name
-                'data' => json_encode($row),
+                'source_table' => $actualTableName,
+                'data' => json_encode($cleanedRow, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), // ✅ Better encoding
                 'created_at' => now(),
                 'updated_at' => now()
             ];
@@ -78,6 +92,90 @@ class MasterDataService
         }
 
         return count($masterRecords);
+    }
+
+    /**
+     * ✅ NEW: Format datetime to ISO 8601 string
+     */
+    private function formatDatetime($datetime)
+    {
+        if (is_null($datetime)) {
+            return null;
+        }
+        
+        try {
+            // Handle different datetime formats
+            if ($datetime instanceof \DateTime) {
+                return $datetime->format('Y-m-d H:i:s');
+            }
+            
+            if (is_string($datetime)) {
+                $dt = new \DateTime($datetime);
+                return $dt->format('Y-m-d H:i:s');
+            }
+            
+            return $datetime;
+        } catch (\Exception $e) {
+            Log::warning('Failed to format datetime', [
+                'value' => $datetime,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * ✅ NEW: Clean row data dari binary/non-serializable content
+     */
+    private function cleanRowData(array $row): array
+    {
+        $cleaned = [];
+        
+        foreach ($row as $key => $value) {
+            // Skip binary data atau resource
+            if (is_resource($value)) {
+                continue;
+            }
+            
+            // Convert boolean to int untuk JSON consistency
+            if (is_bool($value)) {
+                $cleaned[$key] = $value ? 1 : 0;
+                continue;
+            }
+            
+            // Handle null values
+            if (is_null($value)) {
+                $cleaned[$key] = null;
+                continue;
+            }
+            
+            // Keep scalar values
+            if (is_scalar($value)) {
+                $cleaned[$key] = $value;
+                continue;
+            }
+            
+            // Convert objects to string representation
+            if (is_object($value)) {
+                if (method_exists($value, '__toString')) {
+                    $cleaned[$key] = (string) $value;
+                } else {
+                    $cleaned[$key] = json_encode($value);
+                }
+                continue;
+            }
+            
+            // Handle arrays recursively
+            if (is_array($value)) {
+                $cleaned[$key] = $this->cleanRowData($value);
+                continue;
+            }
+            
+            // Default: keep as is
+            $cleaned[$key] = $value;
+        }
+        
+        return $cleaned;
     }
 
     /**
@@ -170,7 +268,6 @@ class MasterDataService
         $tableStructures = [];
 
         foreach ($formats as $format) {
-            // ✅ PERBAIKAN: Gunakan actual table name
             $department = DB::table('departments')->find($format->department_id);
             if (!$department) {
                 continue;
@@ -219,5 +316,59 @@ class MasterDataService
         }
 
         return $duplicates;
+    }
+
+    /**
+     * ✅ NEW: Validate and repair corrupted master_data
+     */
+    public function repairCorruptedMasterData(): array
+    {
+        $repaired = 0;
+        $failed = 0;
+        
+        $corruptedRecords = DB::table('master_data')
+            ->whereRaw("data::text NOT LIKE '%\"created_at\":\"%-%-%'")
+            ->orWhereRaw("data::text LIKE '%2000:00.%'")
+            ->get();
+        
+        foreach ($corruptedRecords as $record) {
+            try {
+                $data = json_decode($record->data, true);
+                
+                if (!$data) {
+                    $failed++;
+                    continue;
+                }
+                
+                // Fix datetime fields
+                if (isset($data['created_at'])) {
+                    $data['created_at'] = $this->formatDatetime($data['created_at']);
+                }
+                if (isset($data['updated_at'])) {
+                    $data['updated_at'] = $this->formatDatetime($data['updated_at']);
+                }
+                
+                // Update record
+                DB::table('master_data')
+                    ->where('id', $record->id)
+                    ->update([
+                        'data' => json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                    ]);
+                
+                $repaired++;
+            } catch (\Exception $e) {
+                Log::error('Failed to repair master_data record', [
+                    'id' => $record->id,
+                    'error' => $e->getMessage()
+                ]);
+                $failed++;
+            }
+        }
+        
+        return [
+            'total_corrupted' => count($corruptedRecords),
+            'repaired' => $repaired,
+            'failed' => $failed
+        ];
     }
 }
