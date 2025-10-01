@@ -241,6 +241,8 @@ class UploadService
                     // ✅ CRITICAL: Add upload_history_id and department_id
                     $rowData['upload_history_id'] = $history->id;
                     $rowData['department_id'] = $departmentId;
+                    $rowData['created_at'] = now();
+                    $rowData['updated_at'] = now();
 
                     // Filter only valid columns
                     $originalKeys = array_keys($rowData);

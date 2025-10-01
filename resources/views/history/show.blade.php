@@ -154,9 +154,117 @@
             </div>
         </div>
 
+        <!-- ✅ TAMBAHAN: Tabel Data yang Berhasil Di-import -->
+        @if($history->status === 'completed' && $history->success_rows > 0)
+        <div class="card mb-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-table me-2"></i>Data yang Berhasil Di-import
+                </h5>
+                <div>
+                    <span class="badge bg-success me-2">{{ $importedData->total() }} rows</span>
+                    <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#tableData" aria-expanded="false">
+                        <i class="fas fa-eye me-1"></i>Tampilkan Tabel
+                    </button>
+                </div>
+            </div>
+            <div class="collapse" id="tableData">
+                <div class="card-body">
+                    @if($importedData->isEmpty())
+                    <div class="text-center py-3 text-muted">
+                        <i class="fas fa-inbox" style="font-size: 2rem;"></i>
+                        <p class="mb-0 mt-2">Tidak ada data ditemukan</p>
+                    </div>
+                    @else
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Menampilkan data dari tabel: <code>{{ $targetTable }}</code> (20 data per halaman)
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="50" class="text-center">#</th>
+                                    @foreach($tableColumns as $column)
+                                        @if(!in_array($column, ['id', 'upload_history_id', 'department_id', 'created_at', 'updated_at']))
+                                        <th class="text-nowrap">{{ ucwords(str_replace('_', ' ', $column)) }}</th>
+                                        @endif
+                                    @endforeach
+                                    <th width="150" class="text-center">Waktu Input</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($importedData as $row)
+                                <tr>
+                                    <td class="text-center">{{ $importedData->firstItem() + $loop->index }}</td>
+                                    @foreach($tableColumns as $column)
+                                        @if(!in_array($column, ['id', 'upload_history_id', 'department_id', 'created_at', 'updated_at']))
+                                        <td>{{ $row->$column ?? '-' }}</td>
+                                        @endif
+                                    @endforeach
+                                    <td class="text-center small text-muted">
+                                        {{ $row->created_at ? \Carbon\Carbon::parse($row->created_at)->format('d/m/Y H:i') : '-' }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="mt-3 d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Menampilkan {{ $importedData->firstItem() }} - {{ $importedData->lastItem() }} dari {{ $importedData->total() }} data
+                        </div>
+                        <div>
+                            {{ $importedData->links('pagination::bootstrap-4') }}
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+        @endif  
+
+@push('scripts')
+<script>
+// Auto-expand tabel jika ada parameter page di URL (artinya user navigasi pagination)
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasPageParam = urlParams.has('page');
+    
+    if (hasPageParam) {
+        // Auto-expand collapse jika ada pagination
+        const tableData = document.getElementById('tableData');
+        if (tableData) {
+            const bsCollapse = new bootstrap.Collapse(tableData, {
+                toggle: false
+            });
+            bsCollapse.show();
+        }
+    }
+    
+    // Update tombol text saat collapse state berubah
+    const tableData = document.getElementById('tableData');
+    const toggleBtn = document.querySelector('[data-bs-target="#tableData"]');
+    
+    if (tableData && toggleBtn) {
+        tableData.addEventListener('show.bs.collapse', function () {
+            toggleBtn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Sembunyikan Tabel';
+        });
+        
+        tableData.addEventListener('hide.bs.collapse', function () {
+            toggleBtn.innerHTML = '<i class="fas fa-eye me-1"></i>Tampilkan Tabel';
+        });
+    }
+});
+</script>
+@endpush
+
         <!-- Error Details -->
         @if($history->failed_rows > 0 && $history->error_details)
-        <div class="card border-danger">
+        <div class="card border-danger mb-4">
             <div class="card-header bg-danger text-white">
                 <h5 class="mb-0">
                     <i class="fas fa-exclamation-triangle me-2"></i>Detail Error ({{ count($history->error_details) }} error)
