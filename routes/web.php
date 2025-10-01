@@ -25,6 +25,22 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/', [ExcelFormatController::class, 'store'])->name('store');
     });
 
+    // Tambahkan route ini di dalam Route::middleware(['auth'])->group(function () {
+
+// User Upload Tracking
+Route::prefix('my-uploads')->name('my-uploads.')->group(function () {
+    Route::get('/', [App\Http\Controllers\UserUploadController::class, 'index'])->name('index');
+    Route::get('/stats', [App\Http\Controllers\UserUploadController::class, 'stats'])->name('stats');
+});
+
+// Admin - User Activity Monitoring
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::prefix('user-activity')->name('user-activity.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\UserActivityController::class, 'index'])->name('index');
+        Route::get('/{userId}', [App\Http\Controllers\Admin\UserActivityController::class, 'show'])->name('show');
+        Route::get('/{userId}/export', [App\Http\Controllers\Admin\UserActivityController::class, 'export'])->name('export');
+    });
+});
     // Upload Routes
     Route::prefix('upload')->name('upload.')->group(function () {
         Route::get('/', [UploadController::class, 'index'])->name('index');
@@ -46,6 +62,21 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [HistoryController::class, 'index'])->name('index');
         Route::get('/{id}', [HistoryController::class, 'show'])->name('show');
     });
+
+    // User Upload Tracking
+Route::prefix('my-uploads')->name('my-uploads.')->group(function () {
+    Route::get('/', [App\Http\Controllers\UserUploadController::class, 'index'])->name('index');
+    Route::get('/stats', [App\Http\Controllers\UserUploadController::class, 'stats'])->name('stats');
+});
+
+// Admin - User Activity Monitoring
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::prefix('user-activity')->name('user-activity.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\UserActivityController::class, 'index'])->name('index');
+        Route::get('/{userId}', [App\Http\Controllers\Admin\UserActivityController::class, 'show'])->name('show');
+        Route::get('/{userId}/export', [App\Http\Controllers\Admin\UserActivityController::class, 'export'])->name('export');
+    });
+});
 });
 
 // Admin Only Routes

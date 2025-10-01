@@ -37,6 +37,11 @@
                                 <i class="fas fa-upload"></i> Upload
                             </a>
                         </li>
+                                        <li class="nav-item">
+    <a class="nav-link {{ request()->routeIs('my-uploads.*') ? 'active' : '' }}" href="{{ route('my-uploads.index') }}">
+        <i class="fas fa-user-clock"></i> My Uploads
+    </a>
+</li>
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('mapping.*') ? 'active' : '' }}" href="{{ route('mapping.index') }}">
                                 <i class="fas fa-project-diagram"></i> Mapping
@@ -65,6 +70,9 @@
                                         <i class="fas fa-building me-2"></i>Departments
                                     </a>
                                 </li>
+                                  <a class="dropdown-item" href="{{ route('admin.user-activity.index') }}">
+        <i class="fas fa-chart-line me-2"></i>User Activity
+    </a>
                                 <li>
                                     <a class="dropdown-item" href="{{ route('admin.master-data.index') }}">
                                         <i class="fas fa-database me-2"></i>Master Data
@@ -83,6 +91,8 @@
                                 </li>
                             </ul>
                         </li>
+                        <li>
+</li>
                         @endif
                         @endauth
                     </ul>
