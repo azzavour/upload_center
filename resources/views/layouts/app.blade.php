@@ -37,11 +37,11 @@
                                 <i class="fas fa-upload"></i> Upload
                             </a>
                         </li>
-                                        <li class="nav-item">
-    <a class="nav-link {{ request()->routeIs('my-uploads.*') ? 'active' : '' }}" href="{{ route('my-uploads.index') }}">
-        <i class="fas fa-user-clock"></i> My Uploads
-    </a>
-</li>
+                       <li class="nav-item">
+                           <a class="nav-link {{ request()->routeIs('department-uploads.*') ? 'active' : '' }}" href="{{ route('department-uploads.index') }}">
+                                 <i class="fas fa-building"></i> Department Uploads
+                         </a>
+                    </li>
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('mapping.*') ? 'active' : '' }}" href="{{ route('mapping.index') }}">
                                 <i class="fas fa-project-diagram"></i> Mapping

@@ -8,6 +8,8 @@ use App\Http\Controllers\MappingController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\AdminMasterController;
+use App\Http\Controllers\DepartmentUploadController;
+use App\Http\Controllers\Admin\UserActivityController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -25,22 +27,13 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/', [ExcelFormatController::class, 'store'])->name('store');
     });
 
-    // Tambahkan route ini di dalam Route::middleware(['auth'])->group(function () {
-
-// User Upload Tracking
-Route::prefix('my-uploads')->name('my-uploads.')->group(function () {
-    Route::get('/', [App\Http\Controllers\UserUploadController::class, 'index'])->name('index');
-    Route::get('/stats', [App\Http\Controllers\UserUploadController::class, 'stats'])->name('stats');
-});
-
-// Admin - User Activity Monitoring
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::prefix('user-activity')->name('user-activity.')->group(function () {
-        Route::get('/', [App\Http\Controllers\Admin\UserActivityController::class, 'index'])->name('index');
-        Route::get('/{userId}', [App\Http\Controllers\Admin\UserActivityController::class, 'show'])->name('show');
-        Route::get('/{userId}/export', [App\Http\Controllers\Admin\UserActivityController::class, 'export'])->name('export');
+    // ✅ GANTI: Department Upload Routes (dulu my-uploads)
+    Route::prefix('department-uploads')->name('department-uploads.')->group(function () {
+        Route::get('/', [DepartmentUploadController::class, 'index'])->name('index');
+        Route::get('/stats', [DepartmentUploadController::class, 'stats'])->name('stats');
+        Route::get('/download/{id}', [DepartmentUploadController::class, 'download'])->name('download');
     });
-});
+
     // Upload Routes
     Route::prefix('upload')->name('upload.')->group(function () {
         Route::get('/', [UploadController::class, 'index'])->name('index');
@@ -62,27 +55,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/', [HistoryController::class, 'index'])->name('index');
         Route::get('/{id}', [HistoryController::class, 'show'])->name('show');
     });
-
-    // User Upload Tracking
-Route::prefix('my-uploads')->name('my-uploads.')->group(function () {
-    Route::get('/', [App\Http\Controllers\UserUploadController::class, 'index'])->name('index');
-    Route::get('/stats', [App\Http\Controllers\UserUploadController::class, 'stats'])->name('stats');
-});
-
-// Admin - User Activity Monitoring
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::prefix('user-activity')->name('user-activity.')->group(function () {
-        Route::get('/', [App\Http\Controllers\Admin\UserActivityController::class, 'index'])->name('index');
-        Route::get('/{userId}', [App\Http\Controllers\Admin\UserActivityController::class, 'show'])->name('show');
-        Route::get('/{userId}/export', [App\Http\Controllers\Admin\UserActivityController::class, 'export'])->name('export');
-    });
-});
 });
 
 // Admin Only Routes
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     // Department Management
     Route::resource('departments', DepartmentController::class);
+
+    // User Activity Monitoring
+    Route::prefix('user-activity')->name('user-activity.')->group(function () {
+        Route::get('/', [UserActivityController::class, 'index'])->name('index');
+        Route::get('/{userId}', [UserActivityController::class, 'show'])->name('show');
+        Route::get('/{userId}/export', [UserActivityController::class, 'export'])->name('export');
+    });
 
     // Master Data
     Route::prefix('master-data')->name('master-data.')->group(function () {

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'My Uploads')
+@section('title', 'Department Uploads')
 
 @section('content')
 <!-- Statistics Cards -->
@@ -26,18 +26,18 @@
     <div class="col-md-3">
         <div class="card border-info">
             <div class="card-body text-center">
-                <i class="fas fa-percentage text-info" style="font-size: 2rem;"></i>
-                <h3 class="mt-2 mb-0">{{ $stats['success_rate'] }}%</h3>
-                <small class="text-muted">Success Rate</small>
+                <i class="fas fa-users text-info" style="font-size: 2rem;"></i>
+                <h3 class="mt-2 mb-0">{{ $stats['active_users'] }}</h3>
+                <small class="text-muted">Active Users</small>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card border-warning">
             <div class="card-body text-center">
-                <i class="fas fa-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
-                <h3 class="mt-2 mb-0">{{ $stats['total_failed_rows'] }}</h3>
-                <small class="text-muted">Failed Rows</small>
+                <i class="fas fa-percentage text-warning" style="font-size: 2rem;"></i>
+                <h3 class="mt-2 mb-0">{{ $stats['success_rate'] }}%</h3>
+                <small class="text-muted">Success Rate</small>
             </div>
         </div>
     </div>
@@ -48,14 +48,15 @@
     <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
         <div>
             <h2 class="mb-0">
-                <i class="fas fa-history text-primary me-2"></i>My Upload History
+                <i class="fas fa-building text-primary me-2"></i>Department Uploads
             </h2>
             <p class="text-muted mb-0 mt-2">
-                Tracking semua upload yang telah Anda lakukan
+                <i class="fas fa-info-circle me-1"></i>
+                Semua upload dari department: <strong>{{ $user->department->name }}</strong>
             </p>
         </div>
         <div>
-            <a href="{{ route('my-uploads.stats') }}" class="btn btn-outline-primary">
+            <a href="{{ route('department-uploads.stats') }}" class="btn btn-outline-primary">
                 <i class="fas fa-chart-bar me-2"></i>View Statistics
             </a>
         </div>
@@ -65,8 +66,41 @@
         <!-- Filters -->
         <form method="GET" class="mb-4">
             <div class="row g-3">
+                <!-- Filter by User -->
                 <div class="col-md-3">
-                    <label class="form-label small">Status</label>
+                    <label class="form-label small fw-bold">
+                        <i class="fas fa-user me-1"></i>User
+                    </label>
+                    <select name="user_id" class="form-select form-select-sm">
+                        <option value="">All Users</option>
+                        @foreach($users as $u)
+                            <option value="{{ $u->id }}" {{ request('user_id') == $u->id ? 'selected' : '' }}>
+                                {{ $u->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                
+                <!-- Filter by Format -->
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">
+                        <i class="fas fa-file-excel me-1"></i>Format
+                    </label>
+                    <select name="format_id" class="form-select form-select-sm">
+                        <option value="">All Formats</option>
+                        @foreach($formats as $format)
+                            <option value="{{ $format->id }}" {{ request('format_id') == $format->id ? 'selected' : '' }}>
+                                {{ $format->format_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                
+                <!-- Filter by Status -->
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">
+                        <i class="fas fa-check-circle me-1"></i>Status
+                    </label>
                     <select name="status" class="form-select form-select-sm">
                         <option value="">All Status</option>
                         <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
@@ -74,28 +108,31 @@
                         <option value="processing" {{ request('status') == 'processing' ? 'selected' : '' }}>Processing</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label small">Upload Mode</label>
-                    <select name="upload_mode" class="form-select form-select-sm">
-                        <option value="">All Modes</option>
-                        <option value="append" {{ request('upload_mode') == 'append' ? 'selected' : '' }}>Append</option>
-                        <option value="replace" {{ request('upload_mode') == 'replace' ? 'selected' : '' }}>Replace</option>
-                    </select>
-                </div>
+                
+                <!-- Filter by Date Range -->
                 <div class="col-md-2">
-                    <label class="form-label small">Start Date</label>
+                    <label class="form-label small fw-bold">
+                        <i class="fas fa-calendar me-1"></i>Start Date
+                    </label>
                     <input type="date" name="start_date" class="form-control form-control-sm" 
                         value="{{ request('start_date') }}">
                 </div>
+                
                 <div class="col-md-2">
-                    <label class="form-label small">End Date</label>
+                    <label class="form-label small fw-bold">End Date</label>
                     <input type="date" name="end_date" class="form-control form-control-sm" 
                         value="{{ request('end_date') }}">
                 </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary btn-sm w-100">
-                        <i class="fas fa-filter me-1"></i>Filter
+            </div>
+            
+            <div class="row g-2 mt-2">
+                <div class="col-md-6">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-filter me-1"></i>Apply Filters
                     </button>
+                    <a href="{{ route('department-uploads.index') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-redo me-1"></i>Reset
+                    </a>
                 </div>
             </div>
         </form>
@@ -103,8 +140,10 @@
         <!-- Last Upload Info -->
         @if($stats['last_upload'])
         <div class="alert alert-info" role="alert">
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>Last Upload:</strong> {{ $stats['last_upload']->original_filename }} 
+            <i class="fas fa-clock me-2"></i>
+            <strong>Last Upload:</strong> 
+            {{ $stats['last_upload']->original_filename }} 
+            by <strong>{{ $stats['last_upload']->uploader->name }}</strong>
             ({{ $stats['last_upload']->uploaded_at->diffForHumans() }})
         </div>
         @endif
@@ -113,10 +152,7 @@
         @if($uploads->isEmpty())
         <div class="text-center py-5">
             <i class="fas fa-inbox text-muted" style="font-size: 4rem;"></i>
-            <p class="text-muted mt-3 mb-0">Anda belum melakukan upload apapun</p>
-            <a href="{{ route('upload.index') }}" class="btn btn-primary mt-3">
-                <i class="fas fa-upload me-2"></i>Upload File Pertama
-            </a>
+            <p class="text-muted mt-3 mb-0">Belum ada upload di department ini</p>
         </div>
         @else
         <div class="table-responsive">
@@ -125,13 +161,14 @@
                     <tr>
                         <th width="50">#</th>
                         <th>Date & Time</th>
+                        <th>Uploaded By</th>
                         <th>Filename</th>
                         <th>Format</th>
                         <th>Mode</th>
                         <th>Status</th>
                         <th>Rows</th>
                         <th>Accuracy</th>
-                        <th width="100">Action</th>
+                        <th width="150">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -145,8 +182,17 @@
                             </div>
                         </td>
                         <td>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-user-circle text-primary me-2"></i>
+                                <div>
+                                    <div class="fw-bold small">{{ $upload->uploader->name }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ $upload->uploader->email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
                             <i class="fas fa-file-excel text-success me-1"></i>
-                            {{ Str::limit($upload->original_filename, 30) }}
+                            <span class="small">{{ Str::limit($upload->original_filename, 25) }}</span>
                         </td>
                         <td>
                             <span class="badge bg-info text-white small">
@@ -195,11 +241,18 @@
                             </div>
                         </td>
                         <td>
-                            <a href="{{ route('history.show', $upload->id) }}" 
-                                class="btn btn-sm btn-outline-primary"
-                                title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </a>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ route('history.show', $upload->id) }}" 
+                                    class="btn btn-outline-primary"
+                                    title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ route('department-uploads.download', $upload->id) }}" 
+                                    class="btn btn-outline-success"
+                                    title="Download File">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     @endforeach
@@ -212,6 +265,25 @@
             {{ $uploads->appends(request()->query())->links() }}
         </div>
         @endif
+    </div>
+</div>
+
+<!-- Info Box -->
+<div class="alert alert-light border mt-4" role="alert">
+    <div class="d-flex align-items-start">
+        <i class="fas fa-info-circle text-primary me-3 mt-1" style="font-size: 1.5rem;"></i>
+        <div>
+            <h6 class="alert-heading mb-2">
+                <strong>Tentang Department Uploads</strong>
+            </h6>
+            <ul class="mb-0 small">
+                <li>Anda dapat melihat <strong>semua upload dari user di department Anda</strong></li>
+                <li>Gunakan filter untuk mencari upload tertentu berdasarkan user, format, atau tanggal</li>
+                <li>Klik <i class="fas fa-eye"></i> untuk melihat detail lengkap upload</li>
+                <li>Klik <i class="fas fa-download"></i> untuk mendownload file asli yang diupload</li>
+                <li><strong>Read-only:</strong> Anda hanya bisa melihat, tidak bisa menghapus upload user lain</li>
+            </ul>
+        </div>
     </div>
 </div>
 @endsection

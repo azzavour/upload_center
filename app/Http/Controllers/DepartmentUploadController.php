@@ -56,12 +56,12 @@ class DepartmentUploadController extends Controller
             $query->where('upload_mode', $request->upload_mode);
         }
         
-        // ✅ BARU: Filter by format
+        // Filter by format
         if ($request->has('format_id') && $request->format_id != '') {
             $query->where('excel_format_id', $request->format_id);
         }
         
-        // ✅ BARU: Filter by user
+        // Filter by user
         if ($request->has('user_id') && $request->user_id != '') {
             $query->where('uploaded_by', $request->user_id);
         }
@@ -71,12 +71,12 @@ class DepartmentUploadController extends Controller
         // Get statistics for department
         $stats = $this->getDepartmentStats($departmentId);
         
-        // ✅ BARU: Get users in department untuk filter dropdown
+        // Get users in department untuk filter dropdown
         $users = User::where('department_id', $departmentId)
             ->orderBy('name')
             ->get();
         
-        // ✅ BARU: Get formats in department untuk filter dropdown
+        // Get formats in department untuk filter dropdown
         $formats = ExcelFormat::where('department_id', $departmentId)
             ->where('is_active', true)
             ->orderBy('format_name')
@@ -126,7 +126,7 @@ class DepartmentUploadController extends Controller
             ->orderBy('total_uploads', 'desc')
             ->get();
         
-        // ✅ BARU: Upload by user (top uploaders in department)
+        // Upload by user (top uploaders in department)
         $uploadsByUser = UploadHistory::where('department_id', $departmentId)
             ->join('users', 'upload_histories.uploaded_by', '=', 'users.id')
             ->select(
@@ -149,7 +149,7 @@ class DepartmentUploadController extends Controller
     }
 
     /**
-     * ✅ BARU: Download uploaded file
+     * Download uploaded file
      */
     public function download($id)
     {
@@ -203,7 +203,7 @@ class DepartmentUploadController extends Controller
         $successRate = $totalUploads > 0 ? ($completedUploads / $totalUploads) * 100 : 0;
         $dataAccuracy = $totalRowsProcessed > 0 ? ($totalSuccessRows / $totalRowsProcessed) * 100 : 0;
         
-        // ✅ BARU: Total active users in department
+        // Total active users in department
         $activeUsers = UploadHistory::where('department_id', $departmentId)
             ->distinct('uploaded_by')
             ->count('uploaded_by');
@@ -218,7 +218,7 @@ class DepartmentUploadController extends Controller
             'success_rate' => round($successRate, 2),
             'data_accuracy' => round($dataAccuracy, 2),
             'last_upload' => $lastUpload,
-            'active_users' => $activeUsers, // ✅ BARU
+            'active_users' => $activeUsers,
         ];
     }
 }

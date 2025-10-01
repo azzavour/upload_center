@@ -144,13 +144,35 @@
             <i class="fas fa-lightbulb me-2"></i>Panduan Upload
         </h5>
         <ul class="mb-0 small">
-            <li>Pastikan file Excel memiliki header di baris pertama</li>
-            <li>Kolom yang wajib ada: Track ID, Track Name, Artist Name</li>
-            <li>Format tanggal: YYYY-MM-DD atau DD/MM/YYYY</li>
-            <li>Harga gunakan format angka tanpa simbol mata uang</li>
-            <li>Jika kolom berbeda, sistem akan meminta Anda melakukan mapping</li>
-            <li><strong>File CSV juga didukung!</strong> Pastikan encoding UTF-8</li>
+            <li><strong>Pastikan file Excel memiliki header di baris pertama</strong></li>
+            <li><strong>Format file yang didukung:</strong> XLSX, XLS, CSV (maksimal 10MB)</li>
+            <li><strong>Pilih format yang sesuai</strong> dengan data yang akan diupload</li>
+            <li><strong>Mode Upload:</strong>
+                <ul class="mt-1">
+                    <li><strong>Append (Tambahkan Data):</strong> Data baru ditambahkan ke data yang sudah ada. Data lama tetap tersimpan.</li>
+                    <li><strong>Replace (Ganti Data):</strong> Data lama dari department Anda akan dihapus dan diganti dengan data baru.</li>
+                </ul>
+            </li>
+            <li><strong>Sistem akan otomatis mendeteksi format file Anda:</strong>
+                <ul class="mt-1">
+                    <li>Jika kolom Excel <strong>sama persis</strong> dengan format yang terdaftar → upload langsung</li>
+                    <li>Jika kolom Excel <strong>berbeda</strong> → sistem akan meminta Anda membuat mapping</li>
+                </ul>
+            </li>
+            <li><strong>Mapping:</strong> Jika kolom Excel berbeda dari format database, Anda perlu memetakan kolom Excel ke kolom database yang sesuai</li>
+            <li><strong>File CSV:</strong> Pastikan encoding UTF-8 untuk menghindari karakter aneh</li>
+            <li><strong>Setelah upload berhasil,</strong> Anda dapat melihat hasilnya di menu <strong>Department Uploads</strong></li>
         </ul>
+        
+        <div class="alert alert-info mt-3 mb-0">
+            <strong><i class="fas fa-info-circle me-2"></i>Tips:</strong>
+            <ul class="mb-0 mt-2 small">
+                <li>Gunakan tombol <strong>"Cek Format"</strong> untuk melihat pratinjau data sebelum upload</li>
+                <li>Pastikan data sudah benar sebelum klik <strong>"Upload & Process"</strong></li>
+                <li>Jika ada error, cek detail error di halaman <strong>History</strong></li>
+                <li>Semua user di department Anda dapat melihat file yang Anda upload di <strong>Department Uploads</strong></li>
+            </ul>
+        </div>
     </div>
 </div>
 @endsection

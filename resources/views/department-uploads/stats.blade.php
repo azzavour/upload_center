@@ -1,12 +1,20 @@
 @extends('layouts.app')
 
-@section('title', 'My Upload Statistics')
+@section('title', 'Department Statistics')
 
 @section('content')
 <div class="mb-3">
-    <a href="{{ route('my-uploads.index') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Back to My Uploads
+    <a href="{{ route('department-uploads.index') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Department Uploads
     </a>
+</div>
+
+<!-- Department Info -->
+<div class="alert alert-primary" role="alert">
+    <h5 class="alert-heading">
+        <i class="fas fa-building me-2"></i>{{ $user->department->name }} Statistics
+    </h5>
+    <p class="mb-0">Statistik upload untuk seluruh department</p>
 </div>
 
 <!-- Statistics Overview -->
@@ -32,18 +40,18 @@
     <div class="col-md-3">
         <div class="card border-info">
             <div class="card-body text-center">
-                <i class="fas fa-percentage text-info" style="font-size: 2rem;"></i>
-                <h3 class="mt-2 mb-0">{{ $stats['data_accuracy'] }}%</h3>
-                <small class="text-muted">Data Accuracy</small>
+                <i class="fas fa-users text-info" style="font-size: 2rem;"></i>
+                <h3 class="mt-2 mb-0">{{ $stats['active_users'] }}</h3>
+                <small class="text-muted">Active Users</small>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card border-warning">
             <div class="card-body text-center">
-                <i class="fas fa-chart-line text-warning" style="font-size: 2rem;"></i>
-                <h3 class="mt-2 mb-0">{{ $stats['success_rate'] }}%</h3>
-                <small class="text-muted">Success Rate</small>
+                <i class="fas fa-percentage text-warning" style="font-size: 2rem;"></i>
+                <h3 class="mt-2 mb-0">{{ $stats['data_accuracy'] }}%</h3>
+                <small class="text-muted">Data Accuracy</small>
             </div>
         </div>
     </div>
@@ -89,7 +97,7 @@
 </div>
 
 <!-- Upload by Format -->
-<div class="card shadow-sm">
+<div class="card shadow-sm mb-4">
     <div class="card-header bg-white">
         <h5 class="mb-0">
             <i class="fas fa-file-excel me-2"></i>Upload by Format
@@ -121,6 +129,50 @@
                         <td class="text-center">{{ number_format($format->total_rows) }}</td>
                     </tr>
                     @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
+    </div>
+</div>
+
+<!-- ✅ BARU: Upload by User -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="fas fa-users me-2"></i>Top Uploaders in Department
+        </h5>
+    </div>
+    <div class="card-body">
+        @if($uploadsByUser->isEmpty())
+        <p class="text-muted text-center">No data available</p>
+        @else
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th width="50">#</th>
+                        <th>User Name</th>
+                        <th>Email</th>
+                        <th class="text-center">Total Uploads</th>
+                        <th class="text-center">Total Rows</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($uploadsByUser as $userStat)
+                    <tr>
+                        <td>{{ $loop->iteration }}</td>
+                        <td>
+                            <i class="fas fa-user-circle text-primary me-2"></i>
+                            <strong>{{ $userStat->name }}</strong>
+                        </td>
+                        <td class="text-muted small">{{ $userStat->email }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-primary">{{ $userStat->total_uploads }}</span>
+                        </td>
+                            <td class="text-center">{{ number_format($userStat->total_rows) }}</td>
+                        </tr>
+                        @endforeach
                 </tbody>
             </table>
         </div>
