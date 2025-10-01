@@ -52,6 +52,34 @@
                         <strong>Waktu Upload</strong>
                         <p class="mb-0">{{ $history->uploaded_at->format('d M Y H:i:s') }}</p>
                     </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Diupload Oleh</strong>
+                        <p class="mb-0">
+                            <i class="fas fa-user me-1"></i>
+                            {{ $history->uploader ? $history->uploader->name : 'Unknown' }}
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Department</strong>
+                        <p class="mb-0">
+                            <i class="fas fa-building me-1"></i>
+                            {{ $history->department ? $history->department->name : 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Mode Upload</strong>
+                        <p class="mb-0">
+                            @if($history->upload_mode === 'replace')
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-sync-alt me-1"></i>Replace (Data lama dihapus)
+                                </span>
+                            @else
+                                <span class="badge bg-success">
+                                    <i class="fas fa-plus-circle me-1"></i>Append (Data ditambahkan)
+                                </span>
+                            @endif
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

@@ -119,15 +119,32 @@ class UploadController extends Controller
             }
             
             foreach ($excelHeaders as $index => $header) {
-                $dbColumn = collect($mappingToUse)->search(function ($dbCol, $excelCol) use ($header) {
-                    return strtolower(trim($excelCol)) === strtolower($header);
-                });
+                $isMapped = false;
+                $mappedTo = null;
+                
+                // Normalize header untuk comparison
+                $normalizedHeader = strtolower(trim($header));
+                $normalizedHeader = preg_replace('/\s+/', '_', $normalizedHeader);
+                $normalizedHeader = preg_replace('/[^a-z0-9_]/', '', $normalizedHeader);
+                
+                // Cek apakah header ada di mapping
+                foreach ($mappingToUse as $excelCol => $dbCol) {
+                    $normalizedExcelCol = strtolower(trim($excelCol));
+                    $normalizedExcelCol = preg_replace('/\s+/', '_', $normalizedExcelCol);
+                    $normalizedExcelCol = preg_replace('/[^a-z0-9_]/', '', $normalizedExcelCol);
+                    
+                    if ($normalizedExcelCol === $normalizedHeader) {
+                        $isMapped = true;
+                        $mappedTo = $dbCol;
+                        break;
+                    }
+                }
 
-                if ($dbColumn !== false) {
+                if ($isMapped) {
                     $headerAnalysis[] = [
                         'name' => $header,
                         'status' => 'mapped',
-                        'mapped_to' => $mappingToUse[$dbColumn]
+                        'mapped_to' => $mappedTo
                     ];
                 } else {
                     $headerAnalysis[] = [
@@ -242,12 +259,16 @@ class UploadController extends Controller
                 'mapping_id' => $mapping?->id
             ]);
 
+            // Get upload mode from request (default to 'append')
+            $uploadMode = $request->input('upload_mode', 'append');
+            
             $history = $this->uploadService->processUpload(
                 $request->file('file'),
                 $format,
                 $mapping,
                 $departmentId, // ✅ Pastikan ini tidak null
-                $user->id
+                $user->id,
+                $uploadMode
             );
 
             return redirect()->route('history.show', $history->id)

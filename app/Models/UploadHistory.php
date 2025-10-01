@@ -18,6 +18,7 @@ class UploadHistory extends Model
         'failed_rows',
         'error_details',
         'status',
+        'upload_mode',
         'uploaded_at',
         'uploaded_by'
     ];
@@ -45,5 +46,10 @@ class UploadHistory extends Model
 public function uploader()
 {
     return $this->belongsTo(User::class, 'uploaded_by');
+}
+
+public function fileUploads()
+{
+    return $this->hasMany(FileUpload::class);
 }
 }

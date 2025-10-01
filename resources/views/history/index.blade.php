@@ -29,6 +29,8 @@
                         <th width="50">#</th>
                         <th>Filename</th>
                         <th>Format</th>
+                        <th>Uploaded By</th>
+                        <th>Mode</th>
                         <th>Status</th>
                         <th>Rows</th>
                         <th>Upload Date</th>
@@ -47,6 +49,23 @@
                             <span class="badge bg-info">
                                 {{ $history->excelFormat->format_name }}
                             </span>
+                        </td>
+                        <td>
+                            <small>
+                                <i class="fas fa-user me-1"></i>
+                                {{ $history->uploader ? $history->uploader->name : 'Unknown' }}
+                            </small>
+                        </td>
+                        <td>
+                            @if($history->upload_mode === 'replace')
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-sync-alt me-1"></i>Replace
+                                </span>
+                            @else
+                                <span class="badge bg-success">
+                                    <i class="fas fa-plus-circle me-1"></i>Append
+                                </span>
+                            @endif
                         </td>
                         <td>
                             @if($history->status === 'completed')

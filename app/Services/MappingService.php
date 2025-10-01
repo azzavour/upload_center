@@ -70,16 +70,31 @@ class MappingService
             $mappingExcelColumns = array_keys($mapping->column_mapping);
             $normalizedMappingColumns = $this->normalizeColumns($mappingExcelColumns);
 
+            // ✅ PARTIAL MATCHING: Cek apakah semua kolom mapping ada di Excel
+            $mappingColumnsExistInExcel = empty(array_diff($normalizedMappingColumns, $normalizedExcelColumns));
+            
+            // Hitung persentase match
+            $matchCount = count(array_intersect($normalizedMappingColumns, $normalizedExcelColumns));
+            $totalMappingColumns = count($normalizedMappingColumns);
+            $matchPercentage = $totalMappingColumns > 0 ? ($matchCount / $totalMappingColumns) * 100 : 0;
+
             Log::info('Comparing with mapping:', [
                 'mapping_id' => $mapping->id,
                 'mapping_index' => $mapping->mapping_index,
                 'mapping_columns' => $mappingExcelColumns,
-                'normalized' => $normalizedMappingColumns,
-                'match' => $normalizedExcelColumns === $normalizedMappingColumns
+                'normalized_mapping' => $normalizedMappingColumns,
+                'normalized_excel' => $normalizedExcelColumns,
+                'match_count' => $matchCount,
+                'match_percentage' => $matchPercentage,
+                'all_mapping_columns_exist' => $mappingColumnsExistInExcel
             ]);
 
-            if ($normalizedExcelColumns === $normalizedMappingColumns) {
-                Log::info('Mapping found!', ['mapping_index' => $mapping->mapping_index]);
+            // ✅ Gunakan mapping jika semua kolom mapping ada di Excel (minimal 100% dari mapping)
+            if ($mappingColumnsExistInExcel) {
+                Log::info('Mapping found! (Partial match)', [
+                    'mapping_index' => $mapping->mapping_index,
+                    'match_percentage' => $matchPercentage
+                ]);
                 return $mapping;
             }
         }
@@ -91,7 +106,15 @@ class MappingService
     protected function normalizeColumns(array $columns)
     {
         $normalized = array_map(function($col) {
-            return strtolower(trim($col));
+            // Trim whitespace
+            $col = trim($col);
+            // Convert to lowercase
+            $col = strtolower($col);
+            // Replace spaces with underscore
+            $col = preg_replace('/\s+/', '_', $col);
+            // Remove invalid characters (keep only a-z, 0-9, _)
+            $col = preg_replace('/[^a-z0-9_]/', '', $col);
+            return $col;
         }, $columns);
 
         sort($normalized);
@@ -103,10 +126,56 @@ class MappingService
     {
         $mappedData = [];
 
+        // Normalize row keys untuk matching
+        $normalizedRow = [];
+        foreach ($row as $key => $value) {
+            $normalizedKey = $this->normalizeColumn($key);
+            $normalizedRow[$normalizedKey] = $value;
+        }
+
         foreach ($columnMapping as $excelColumn => $dbColumn) {
-            $mappedData[$dbColumn] = $row[$excelColumn] ?? null;
+            // Normalize excel column dari mapping
+            $normalizedExcelCol = $this->normalizeColumn($excelColumn);
+            
+            // Cari value dari row dengan normalized key
+            $mappedData[$dbColumn] = $normalizedRow[$normalizedExcelCol] ?? null;
         }
 
         return $mappedData;
+    }
+
+    /**
+     * ✅ BARU: Deteksi kolom yang diabaikan
+     */
+    public function getIgnoredColumns(array $excelColumns, array $columnMapping): array
+    {
+        $normalizedExcelColumns = $this->normalizeColumns($excelColumns);
+        $normalizedMappingColumns = $this->normalizeColumns(array_keys($columnMapping));
+        
+        // Kolom yang ada di Excel tapi tidak ada di mapping
+        $ignoredColumns = array_diff($normalizedExcelColumns, $normalizedMappingColumns);
+        
+        // Return original column names (not normalized)
+        $originalIgnoredColumns = [];
+        foreach ($excelColumns as $col) {
+            $normalized = $this->normalizeColumn($col);
+            if (in_array($normalized, $ignoredColumns)) {
+                $originalIgnoredColumns[] = $col;
+            }
+        }
+        
+        return $originalIgnoredColumns;
+    }
+
+    /**
+     * ✅ BARU: Normalize single column
+     */
+    protected function normalizeColumn(string $column): string
+    {
+        $col = trim($column);
+        $col = strtolower($col);
+        $col = preg_replace('/\s+/', '_', $col);
+        $col = preg_replace('/[^a-z0-9_]/', '', $col);
+        return $col;
     }
 }

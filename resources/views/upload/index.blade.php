@@ -53,6 +53,35 @@
                 </div>
             </div>
 
+            <!-- Upload Mode Selection -->
+            <div class="mb-4">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-cog me-1"></i>Mode Upload
+                </label>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="upload_mode" id="mode_append" value="append" checked>
+                            <label class="form-check-label" for="mode_append">
+                                <strong><i class="fas fa-plus-circle text-success me-2"></i>Append (Tambahkan Data)</strong>
+                                <p class="text-muted small mb-0 ms-4">Data baru akan ditambahkan ke data yang sudah ada. Data lama tidak akan dihapus.</p>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="upload_mode" id="mode_replace" value="replace">
+                            <label class="form-check-label" for="mode_replace">
+                                <strong><i class="fas fa-sync-alt text-warning me-2"></i>Replace (Ganti Data)</strong>
+                                <p class="text-muted small mb-0 ms-4">Data lama dari department Anda akan dihapus dan diganti dengan data baru.</p>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-warning mt-2 d-none" id="replace-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Perhatian!</strong> Mode Replace akan menghapus semua data sebelumnya dari department Anda untuk format ini.
+                </div>
+            </div>
+
             <!-- Warning for New Format -->
             <div id="mapping-section" class="mb-4 d-none">
                 <div class="alert alert-warning" role="alert">
@@ -134,6 +163,18 @@ function isValidFileType(fileName) {
     const extension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
     return validExtensions.includes(extension);
 }
+
+// Show/hide warning when replace mode is selected
+document.querySelectorAll('input[name="upload_mode"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const warning = document.getElementById('replace-warning');
+        if (this.value === 'replace') {
+            warning.classList.remove('d-none');
+        } else {
+            warning.classList.add('d-none');
+        }
+    });
+});
 
 document.getElementById('file-upload').addEventListener('change', function(e) {
     const file = e.target.files[0];

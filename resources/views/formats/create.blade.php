@@ -40,33 +40,10 @@
                     Kolom yang Diharapkan <span class="text-danger">*</span>
                 </label>
                 <div id="columns-container" class="mb-3">
-                    <!-- Default columns - CONTOH UMUM -->
+                    <!-- Kolom pertama (wajib ada minimal 1) -->
                     <div class="input-group mb-2 column-row">
-                        <input type="text" name="expected_columns[]" required class="form-control" value="Kode Produk">
-                        <button type="button" onclick="removeColumn(this)" class="btn btn-danger">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="input-group mb-2 column-row">
-                        <input type="text" name="expected_columns[]" required class="form-control" value="Nama Produk">
-                        <button type="button" onclick="removeColumn(this)" class="btn btn-danger">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="input-group mb-2 column-row">
-                        <input type="text" name="expected_columns[]" required class="form-control" value="Kategori">
-                        <button type="button" onclick="removeColumn(this)" class="btn btn-danger">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="input-group mb-2 column-row">
-                        <input type="text" name="expected_columns[]" required class="form-control" value="Harga">
-                        <button type="button" onclick="removeColumn(this)" class="btn btn-danger">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="input-group mb-2 column-row">
-                        <input type="text" name="expected_columns[]" required class="form-control" value="Stok">
+                        <input type="text" name="expected_columns[]" required class="form-control" 
+                               placeholder="Contoh: Kode Produk, Nama, Tanggal, dll">
                         <button type="button" onclick="removeColumn(this)" class="btn btn-danger">
                             <i class="fas fa-times"></i>
                         </button>
@@ -75,22 +52,35 @@
                 <button type="button" onclick="addColumn()" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-plus me-2"></i>Tambah Kolom
                 </button>
+                <div class="form-text mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Tambahkan kolom sesuai dengan header di file Excel Anda. Minimal 1 kolom.
+                </div>
             </div>
 
             <!-- Target Table -->
             <div class="mb-4">
                 <label class="form-label fw-bold">
-                    Target Table <span class="text-danger">*</span>
+                    <i class="fas fa-table me-1"></i>Nama Tabel Baru <span class="text-danger">*</span>
                 </label>
-                <input type="text" name="target_table" required class="form-control" value="produk"
-                    placeholder="Nama tabel di database (contoh: produk, karyawan, penjualan)">
+                <input type="text" name="target_table" id="target_table" required class="form-control" 
+                    placeholder="Masukkan nama tabel (contoh: produk, karyawan, penjualan)"
+                    style="text-transform: lowercase;">
                 @error('target_table')
                 <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
-                <small class="text-muted">
+                <div class="form-text">
                     <i class="fas fa-info-circle me-1"></i>
-                    Tabel akan otomatis dibuat dengan prefix department: <code>dept_[kode_dept]_[nama_tabel]</code>
-                </small>
+                    Nama tabel akan otomatis diubah ke huruf kecil. Hanya boleh huruf, angka, dan underscore (_).
+                </div>
+                <div class="alert alert-success mt-2 mb-0">
+                    <i class="fas fa-magic me-1"></i>
+                    <strong>Tabel akan dibuat otomatis!</strong><br>
+                    <small>
+                        Sistem akan membuat tabel baru di database dengan nama: 
+                        <code class="bg-white px-2 py-1 rounded">dept_[kode_department_anda]_[nama_tabel]</code>
+                    </small>
+                </div>
             </div>
 
             <!-- Info Box -->
@@ -195,5 +185,18 @@ function removeColumn(button) {
         alert('Minimal harus ada satu kolom!');
     }
 }
+
+// Auto-sanitize table name
+document.getElementById('target_table').addEventListener('input', function(e) {
+    let value = e.target.value;
+    // Convert to lowercase
+    value = value.toLowerCase();
+    // Replace spaces with underscore
+    value = value.replace(/\s+/g, '_');
+    // Remove invalid characters (keep only a-z, 0-9, _)
+    value = value.replace(/[^a-z0-9_]/g, '');
+    // Update value
+    e.target.value = value;
+});
 </script>
 @endpush

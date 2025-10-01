@@ -58,9 +58,17 @@
                                     </div>
                                 </div>
 
-                                <div class="small text-muted">
-                                    <i class="fas fa-database me-1"></i>
-                                    Target Table: <code class="bg-light px-2 py-1 rounded">{{ $format->target_table }}</code>
+                                <div class="small">
+                                    <div class="mb-1">
+                                        <i class="fas fa-database me-1 text-muted"></i>
+                                        <strong>Tabel Database:</strong>
+                                    </div>
+                                    <code class="bg-success bg-opacity-10 text-success px-2 py-1 rounded border border-success">
+                                        dept_{{ $format->department ? strtolower($format->department->code) : 'xxx' }}_{{ $format->target_table }}
+                                    </code>
+                                    <div class="text-muted mt-1" style="font-size: 0.75rem;">
+                                        <i class="fas fa-info-circle me-1"></i>Tabel ini sudah dibuat di database
+                                    </div>
                                 </div>
                             </div>
                             

@@ -23,6 +23,16 @@ class ExcelFormatService
         // Normalisasi target table (base name tanpa prefix)
         $data['target_table'] = $this->tableManager->normalizeTableName($data['target_table']);
         
+        // ✅ VALIDASI: Cek apakah sudah ada format dengan target_table yang sama di department ini
+        $existingFormat = ExcelFormat::where('department_id', $departmentId)
+            ->where('target_table', $data['target_table'])
+            ->where('is_active', true)
+            ->first();
+        
+        if ($existingFormat) {
+            throw new \Exception('Tabel "' . $data['target_table'] . '" sudah ada di department Anda. Gunakan nama tabel yang berbeda atau gunakan format yang sudah ada.');
+        }
+        
         // Normalisasi expected columns
         if (isset($data['expected_columns']) && is_array($data['expected_columns'])) {
             $data['expected_columns'] = array_map(
@@ -68,7 +78,7 @@ class ExcelFormatService
 
     public function getAllFormats(?int $departmentId = null)
     {
-        $query = ExcelFormat::where('is_active', true);
+        $query = ExcelFormat::with('department')->where('is_active', true);
         
         if ($departmentId) {
             $query->where('department_id', $departmentId);

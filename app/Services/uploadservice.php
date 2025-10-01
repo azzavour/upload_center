@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\UploadHistory;
 use App\Models\ExcelFormat;
 use App\Models\MappingConfiguration;
+use App\Models\FileUpload;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -35,7 +36,8 @@ class UploadService
         ExcelFormat $format, 
         ?MappingConfiguration $mapping = null,
         ?int $departmentId = null,
-        ?int $userId = null
+        ?int $userId = null,
+        string $uploadMode = 'append'
     ) {
         // Validasi department ID
         if (!$departmentId) {
@@ -60,6 +62,7 @@ class UploadService
             'original_filename' => $originalFilename,
             'stored_filename' => $storedFilename,
             'status' => 'pending',
+            'upload_mode' => $uploadMode,
             'uploaded_at' => now()
         ]);
 
@@ -69,14 +72,41 @@ class UploadService
             // ✅ PERBAIKAN: Pastikan tabel dengan prefix department dibuat/ada
             $actualTableName = $this->ensureDepartmentTableExists($format, $departmentId);
             
+            // ✅ BARU: Handle replace mode - delete previous data from same format
+            if ($uploadMode === 'replace') {
+                Log::info('Replace mode: Deleting previous data', [
+                    'table' => $actualTableName,
+                    'department_id' => $departmentId
+                ]);
+                
+                DB::table($actualTableName)
+                    ->where('department_id', $departmentId)
+                    ->delete();
+            }
+            
             Log::info('Starting upload process', [
                 'history_id' => $history->id,
                 'base_table' => $format->target_table,
                 'actual_table' => $actualTableName,
-                'department_id' => $departmentId
+                'department_id' => $departmentId,
+                'upload_mode' => $uploadMode
             ]);
             
-            $this->importData($path, $format, $mapping, $history, $departmentId, $actualTableName);
+            $rowsInserted = $this->importData($path, $format, $mapping, $history, $departmentId, $actualTableName);
+            
+            // ✅ BARU: Create FileUpload record for tracking
+            FileUpload::create([
+                'upload_history_id' => $history->id,
+                'department_id' => $departmentId,
+                'uploaded_by' => $userId,
+                'original_filename' => $originalFilename,
+                'stored_filename' => $storedFilename,
+                'target_table' => $actualTableName,
+                'format_name' => $format->format_name,
+                'rows_inserted' => $rowsInserted,
+                'upload_mode' => $uploadMode,
+                'uploaded_at' => now()
+            ]);
             
             $history->update(['status' => 'completed']);
             
@@ -271,6 +301,8 @@ class UploadService
                     array_map(fn($w) => ['type' => 'warning'] + $w, $warnings)
                 )
             ]);
+            
+            return $successCount; // Return number of successfully inserted rows
             
         } catch (\Exception $e) {
             DB::rollBack();

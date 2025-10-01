@@ -90,8 +90,12 @@
                                         <i class="fas fa-long-arrow-alt-right text-muted"></i>
                                     </td>
                                     <td>
-                                        <input type="text" class="form-control db-column-input" 
-                                            placeholder="Masukkan nama kolom Database" required>
+                                        <select class="form-select db-column-input" required>
+                                            <option value="">-- Pilih Kolom Database --</option>
+                                            @foreach($format->expected_columns as $col)
+                                            <option value="{{ $col }}">{{ $col }}</option>
+                                            @endforeach
+                                        </select>
                                     </td>
                                     <td class="text-center">
                                         <button type="button" onclick="removeMappingRow(this)" class="btn btn-sm btn-danger">
@@ -132,10 +136,20 @@
 
 @push('scripts')
 <script>
+// Database columns from format
+const dbColumns = @json($format->expected_columns);
+
 function addMappingRow() {
     const tbody = document.getElementById('mappingBody');
     const tr = document.createElement('tr');
     tr.className = 'mapping-row';
+    
+    // Build dropdown options
+    let options = '<option value="">-- Pilih Kolom Database --</option>';
+    dbColumns.forEach(col => {
+        options += `<option value="${col}">${col}</option>`;
+    });
+    
     tr.innerHTML = `
         <td>
             <input type="text" class="form-control excel-column-input" 
@@ -145,8 +159,9 @@ function addMappingRow() {
             <i class="fas fa-long-arrow-alt-right text-muted"></i>
         </td>
         <td>
-            <input type="text" class="form-control db-column-input" 
-                placeholder="Masukkan nama kolom Database" required>
+            <select class="form-select db-column-input" required>
+                ${options}
+            </select>
         </td>
         <td class="text-center">
             <button type="button" onclick="removeMappingRow(this)" class="btn btn-sm btn-danger">
@@ -155,6 +170,10 @@ function addMappingRow() {
         </td>
     `;
     tbody.appendChild(tr);
+    
+    // Add normalize listener to new input
+    const newInput = tr.querySelector('.excel-column-input');
+    newInput.addEventListener('input', normalizeExcelColumn);
 }
 
 function removeMappingRow(button) {
@@ -165,6 +184,25 @@ function removeMappingRow(button) {
         alert('Minimal harus ada satu mapping!');
     }
 }
+
+// Normalize Excel column input
+function normalizeExcelColumn(e) {
+    let value = e.target.value;
+    // Convert to lowercase
+    value = value.toLowerCase();
+    // Replace spaces with underscore
+    value = value.replace(/\s+/g, '_');
+    // Remove invalid characters (keep only a-z, 0-9, _)
+    value = value.replace(/[^a-z0-9_]/g, '');
+    e.target.value = value;
+}
+
+// Add normalize listener to existing inputs
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.excel-column-input').forEach(input => {
+        input.addEventListener('input', normalizeExcelColumn);
+    });
+});
 
 document.getElementById('mappingForm').addEventListener('submit', function(e) {
     e.preventDefault();
