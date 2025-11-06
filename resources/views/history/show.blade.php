@@ -162,7 +162,7 @@
                     <i class="fas fa-table me-2"></i>Data yang Berhasil Di-import
                 </h5>
                 <div>
-                    <span class="badge bg-success me-2">{{ $importedData->total() }} rows</span>
+                    <span class="badge bg-success me-2">{{ optional($importedData)->total() ?? 0 }} rows</span>
                     <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#tableData" aria-expanded="false">
                         <i class="fas fa-eye me-1"></i>Tampilkan Tabel
                     </button>
@@ -170,7 +170,7 @@
             </div>
             <div class="collapse" id="tableData">
                 <div class="card-body">
-                    @if($importedData->isEmpty())
+                    @if(empty($importedData) || $importedData->isEmpty())
                     <div class="text-center py-3 text-muted">
                         <i class="fas fa-inbox" style="font-size: 2rem;"></i>
                         <p class="mb-0 mt-2">Tidak ada data ditemukan</p>
@@ -215,10 +215,12 @@
                     <!-- Pagination -->
                     <div class="mt-3 d-flex justify-content-between align-items-center">
                         <div class="text-muted small">
-                            Menampilkan {{ $importedData->firstItem() }} - {{ $importedData->lastItem() }} dari {{ $importedData->total() }} data
+                            Menampilkan {{ optional($importedData)->firstItem() ?? 0 }} - {{ optional($importedData)->lastItem() ?? 0 }} dari {{ optional($importedData)->total() ?? 0 }} data
                         </div>
                         <div>
-                            {{ $importedData->links('pagination::bootstrap-4') }}
+                            @if(!empty($importedData))
+                                {{ $importedData->links('pagination::bootstrap-4') }}
+                            @endif
                         </div>
                     </div>
                     @endif
