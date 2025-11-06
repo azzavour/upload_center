@@ -91,19 +91,4 @@
                     </form>
                 </div>
             </div>
-
-            <!-- Demo Credentials -->
-            <div class="alert alert-info mt-4" role="alert">
-                <h6 class="alert-heading">
-                    <i class="fas fa-key me-2"></i>Demo Credentials
-                </h6>
-                <div class="small">
-                    <strong>Admin:</strong> admin@uploadcenter.com / password<br>
-                    <strong>Finance:</strong> finance@uploadcenter.com / password<br>
-                    <strong>Sales:</strong> sales@uploadcenter.com / password
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 @endsection
