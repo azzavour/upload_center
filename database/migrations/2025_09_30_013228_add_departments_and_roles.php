@@ -34,14 +34,14 @@ return new class extends Migration
         // 3. ADD COLUMNS TO EXCEL_FORMATS TABLE
         Schema::table('excel_formats', function (Blueprint $table) {
             if (!Schema::hasColumn('excel_formats', 'department_id')) {
-                $table->foreignId('department_id')->nullable()->after('target_table')->constrained()->onDelete('cascade');
+                $table->foreignId('department_id')->nullable()->after('target_table')->constrained()->nullOnDelete();
             }
         });
 
         // 4. ADD COLUMNS TO MAPPING_CONFIGURATIONS TABLE
         Schema::table('mapping_configurations', function (Blueprint $table) {
             if (!Schema::hasColumn('mapping_configurations', 'department_id')) {
-                $table->foreignId('department_id')->nullable()->after('mapping_index')->constrained()->onDelete('cascade');
+                $table->foreignId('department_id')->nullable()->after('mapping_index')->constrained()->nullOnDelete();
             }
             if (!Schema::hasColumn('mapping_configurations', 'mapping_name')) {
                 $table->string('mapping_name')->nullable()->after('department_id');
@@ -54,7 +54,7 @@ return new class extends Migration
         // 5. ADD COLUMNS TO UPLOAD_HISTORIES TABLE
         Schema::table('upload_histories', function (Blueprint $table) {
             if (!Schema::hasColumn('upload_histories', 'department_id')) {
-                $table->foreignId('department_id')->nullable()->after('mapping_configuration_id')->constrained()->onDelete('cascade');
+                $table->foreignId('department_id')->nullable()->after('mapping_configuration_id')->constrained()->nullOnDelete();
             }
             
             // Check if uploaded_by exists and is not already a foreign key
@@ -82,7 +82,7 @@ return new class extends Migration
         if (!Schema::hasTable('master_data')) {
             Schema::create('master_data', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('department_id')->constrained()->onDelete('cascade');
+                $table->foreignId('department_id')->nullable()->constrained()->nullOnDelete();
                 $table->foreignId('upload_history_id')->constrained()->onDelete('cascade');
                 $table->string('source_table');
                 $table->json('data');

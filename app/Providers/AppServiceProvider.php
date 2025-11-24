@@ -2,17 +2,21 @@
 
 namespace App\Providers;
 
+use App\Database\Connectors\SqlServerConnector;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register()
     {
-        // 👇 TAMBAHKAN INI
+        // Bind a custom SQL Server connector that removes unsupported PDO attributes
+        $this->app->bind('db.connector.sqlsrv', fn () => new SqlServerConnector);
+
+        // dY`� TAMBAHKAN INI
         if ($this->app->environment('local')) {
             $this->app->register(\Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider::class);
         }
-        // 👆 SAMPAI SINI
+        // dY`+ SAMPAI SINI
     }
 
     public function boot()

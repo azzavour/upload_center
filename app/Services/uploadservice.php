@@ -170,6 +170,11 @@ class UploadService
         ?int $departmentId,
         string $actualTableName // ✅ BARU: Terima actual table name sebagai parameter
     ) {
+        // Bypass 60s timeout saat memproses file besar
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+
         if (!Storage::exists($path)) {
             throw new \Exception('File ' . $path . ' tidak ditemukan di dalam storage.');
         }
@@ -258,24 +263,22 @@ class UploadService
                     }
 
                     if (!empty($filteredData)) {
-                        // ✅ PERBAIKAN: Insert ke actual table name
+                        // Insert per-row untuk menghindari limit 2100 parameter SQL Server
                         DB::table($actualTableName)->insert($filteredData);
                         $successCount++;
-                        
-                        if ($successCount % 100 == 0) {
-                            Log::info("Imported {$successCount} rows to {$actualTableName}");
-                        }
                     } else {
                         throw new \Exception('Tidak ada kolom valid untuk di-insert');
                     }
 
                 } catch (\Exception $e) {
                     $failedCount++;
-                    $errors[] = [
-                        'row' => $index + 2,
-                        'data' => $rowData ?? [],
-                        'error' => $e->getMessage()
-                    ];
+                    if (count($errors) < 100) { // batasi agar tidak memakan memori
+                        $errors[] = [
+                            'row' => $index + 2,
+                            'data' => $rowData ?? [],
+                            'error' => $e->getMessage()
+                        ];
+                    }
                     
                     Log::warning('Row import failed', [
                         'table' => $actualTableName,
@@ -284,7 +287,7 @@ class UploadService
                     ]);
                 }
             }
-            
+
             DB::commit();
             
             Log::info('Import transaction completed', [

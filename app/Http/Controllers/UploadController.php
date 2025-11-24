@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 
 class UploadController extends Controller
 {
@@ -71,6 +73,11 @@ class UploadController extends Controller
         }
 
         try {
+            // Hindari timeout saat baca file besar
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(0);
+            }
+
             /** @var \App\Models\User $user */
             $user = Auth::user();
             
@@ -86,15 +93,10 @@ class UploadController extends Controller
                 return response()->json(['error' => true, 'message' => 'Unauthorized access to this format'], 403);
             }
 
-            $data = Excel::toArray([], $file);
-            if (empty($data) || empty($data[0])) {
-                return response()->json(['error' => true, 'message' => 'File Excel kosong atau tidak valid'], 400);
-            }
-            
-            $excelHeaders = collect($data[0][0] ?? [])->map(fn($h) => trim($h))->filter()->values()->all();
+            [$excelHeaders, $sampleData] = $this->extractPreviewRows($file);
 
             if (empty($excelHeaders)) {
-                return response()->json(['error' => true, 'message' => 'File Excel tidak memiliki header'], 400);
+                return response()->json(['error' => true, 'message' => 'File Excel kosong atau tidak valid'], 400);
             }
 
             $departmentId = $user->isAdmin() ? $format->department_id : $user->department_id;
@@ -106,8 +108,6 @@ class UploadController extends Controller
             ]);
             
             $existingMapping = $this->mappingService->findMappingByExcelColumns($format->id, $excelHeaders, $departmentId);
-
-            $sampleData = collect($data[0])->slice(1)->take(3)->values()->all();
 
             $headerAnalysis = [];
             $mappingToUse = $existingMapping ? $existingMapping->column_mapping : [];
@@ -282,5 +282,63 @@ class UploadController extends Controller
             return redirect()->back()
                 ->with('error', 'Gagal upload file: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Baca header dan sample baris (maks 50) tanpa memuat seluruh file ke memori.
+     */
+    private function extractPreviewRows($file, int $maxRows = 50): array
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        // CSV: baca cepat dengan fgetcsv dan batas baris
+        if ($ext === 'csv') {
+            $path = $file->getRealPath();
+            $rows = [];
+            if (($handle = fopen($path, 'r')) !== false) {
+                $count = 0;
+                while (($row = fgetcsv($handle)) !== false && $count < $maxRows) {
+                    $rows[] = $row;
+                    $count++;
+                }
+                fclose($handle);
+            }
+
+            $headers = collect($rows[0] ?? [])->map(fn($h) => trim((string) $h))->filter()->values()->all();
+            $sample = collect($rows)->slice(1)->take(3)->map(fn($r) => array_values($r))->values()->all();
+
+            return [$headers, $sample];
+        }
+
+        // XLS/XLSX: pakai PhpSpreadsheet ReadFilter, hanya baca maksimal $maxRows
+        $filter = new class($maxRows) implements IReadFilter {
+            public function __construct(private int $maxRows) {}
+            public function readCell($column, $row, $worksheetName = ''): bool
+            {
+                return $row <= $this->maxRows;
+            }
+        };
+
+        $reader = IOFactory::createReaderForFile($file->getPathname());
+        $reader->setReadDataOnly(true);
+        $reader->setReadFilter($filter);
+
+        $spreadsheet = $reader->load($file->getPathname());
+        $sheet = $spreadsheet->getSheet(0);
+
+        $highestColumn = $sheet->getHighestColumn();
+        $headers = $sheet->rangeToArray("A1:{$highestColumn}1", null, true, true, true)[1] ?? [];
+        $headers = collect($headers)->map(fn($h) => trim((string) $h))->filter()->values()->all();
+
+        $sampleRange = $sheet->rangeToArray("A2:{$highestColumn}".($maxRows), null, true, true, true);
+        $sample = collect($sampleRange)->values()->map(function ($row) {
+            return array_values($row);
+        })->take(3)->all();
+
+        // Bebaskan memory
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
+        return [$headers, $sample];
     }
 }
