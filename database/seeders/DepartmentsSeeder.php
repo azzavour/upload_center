@@ -7,27 +7,20 @@ use App\Models\Department;
 
 class DepartmentsSeeder extends Seeder
 {
-    /**
-     * Seed music streaming service departments
-     */
     public function run()
     {
-        $musicDepartments = [
+        // Hanya pertahankan departemen MIS, hapus entri lain yang tidak relevan
+        Department::where('code', '!=', 'MIS')->delete();
+
+        Department::updateOrCreate(
+            ['code' => 'MIS'],
             [
-                'code' => 'MIS',
                 'name' => 'MIS',
                 'description' => 'Management Information System',
                 'is_active' => true
-            ],
-        ];
+            ]
+        );
 
-        foreach ($musicDepartments as $dept) {
-            Department::updateOrCreate(
-                ['code' => $dept['code']],
-                $dept
-            );
-        }
-
-        $this->command->info('✅ Music streaming departments seeded successfully!');
+        $this->command->info('✅ Department MIS seeded successfully!');
     }
 }

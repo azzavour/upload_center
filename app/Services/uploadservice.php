@@ -264,8 +264,12 @@ class UploadService
 
                     if (!empty($filteredData)) {
                         // Insert per-row untuk menghindari limit 2100 parameter SQL Server
-                        DB::table($actualTableName)->insert($filteredData);
-                        $successCount++;
+                        $rowsToInsert = is_array(reset($filteredData)) ? $filteredData : [$filteredData];
+
+                        foreach ($rowsToInsert as $rowToInsert) {
+                            DB::table($actualTableName)->insert($rowToInsert);
+                            $successCount++;
+                        }
                     } else {
                         throw new \Exception('Tidak ada kolom valid untuk di-insert');
                     }

@@ -202,52 +202,52 @@ class UploadController extends Controller
 
     public function upload(Request $request)
     {
-        $file = $request->file('file');
-        
-        if (!$file) {
-            return redirect()->back()->with('error', 'File tidak ditemukan');
-        }
-
-        $extension = strtolower($file->getClientOriginalExtension());
-        $validExtensions = ['xlsx', 'xls', 'csv'];
-        
-        if (!in_array($extension, $validExtensions)) {
-            return redirect()->back()->with('error', 'File harus berformat XLSX, XLS, atau CSV');
-        }
-
-        if ($file->getSize() > 10 * 1024 * 1024) {
-            return redirect()->back()->with('error', 'Ukuran file maksimal 10MB');
-        }
-
-        if (!$request->format_id) {
-            return redirect()->back()->with('error', 'Format Excel wajib dipilih');
-        }
-
         try {
+            $file = $request->file('file');
+            
+            if (!$file) {
+                return response()->json(['error' => true, 'message' => 'File tidak ditemukan'], 400);
+            }
+
+            $extension = strtolower($file->getClientOriginalExtension());
+            $validExtensions = ['xlsx', 'xls', 'csv'];
+            
+            if (!in_array($extension, $validExtensions)) {
+                return response()->json(['error' => true, 'message' => 'File harus berformat XLSX, XLS, atau CSV'], 400);
+            }
+
+            if ($file->getSize() > 10 * 1024 * 1024) {
+                return response()->json(['error' => true, 'message' => 'Ukuran file maksimal 10MB'], 400);
+            }
+
+            if (!$request->format_id) {
+                return response()->json(['error' => true, 'message' => 'Format Excel wajib dipilih'], 400);
+            }
+
             /** @var \App\Models\User $user */
             $user = Auth::user();
             
-            // ✅ Validasi department
+            // Validasi department
             if (!$user->hasDepartment() && !$user->isAdmin()) {
-                return redirect()->back()->with('error', 'Anda belum terdaftar di department manapun. Hubungi administrator.');
+                return response()->json(['error' => true, 'message' => 'Anda belum terdaftar di department manapun. Hubungi administrator.'], 403);
             }
             
             $format = $this->formatService->findFormatById($request->format_id);
             
             // Cek akses
             if (!$user->isAdmin() && $format->department_id !== $user->department_id) {
-                return redirect()->back()->with('error', 'Unauthorized access.');
+                return response()->json(['error' => true, 'message' => 'Unauthorized access.'], 403);
             }
             
             $mapping = $request->mapping_id 
                 ? \App\Models\MappingConfiguration::findOrFail($request->mapping_id)
                 : null;
 
-            // ✅ CRITICAL: Pastikan department_id terisi dengan benar
+            // Pastikan department_id terisi dengan benar
             $departmentId = $user->isAdmin() ? $format->department_id : $user->department_id;
             
             if (!$departmentId) {
-                return redirect()->back()->with('error', 'Department ID tidak valid. Hubungi administrator.');
+                return response()->json(['error' => true, 'message' => 'Department ID tidak valid. Hubungi administrator.'], 400);
             }
             
             Log::info('Starting upload process', [
@@ -266,21 +266,25 @@ class UploadController extends Controller
                 $request->file('file'),
                 $format,
                 $mapping,
-                $departmentId, // ✅ Pastikan ini tidak null
+                $departmentId, // Pastikan ini tidak null
                 $user->id,
                 $uploadMode
             );
 
-            return redirect()->route('history.show', $history->id)
-                ->with('success', 'File berhasil diupload dan diproses!');
+            return response()->json([
+                'redirect' => route('history.show', $history->id),
+            ]);
                 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Upload error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return redirect()->back()
-                ->with('error', 'Gagal upload file: ' . $e->getMessage());
+            
+            return response()->json([
+                'error'   => true,
+                'message' => 'Terjadi kesalahan saat memproses file. Silakan coba lagi atau hubungi admin.',
+            ], 500);
         }
     }
 

@@ -9,25 +9,29 @@ class ExcelFormatSeeder extends Seeder
 {
     public function run()
     {
-        ExcelFormat::create([
-            'format_name' => 'Music Tracks Format Standard',
-            'format_code' => 'music-tracks-v1',
-            'description' => 'Format standar untuk import data musik/lagu dari iTunes atau Spotify',
-            'expected_columns' => [
-                'Track ID',
-                'Track Name',
-                'Artist ID',
-                'Artist Name',
-                'Album Name',
-                'Genre',
-                'Release Date',
-                'Track Price',
-                'Collection Price',
-                'Country'
+        ExcelFormat::updateOrCreate(
+            [
+                'format_name' => 'Music Tracks Format Standard',
             ],
-            'target_table' => 'tracks',
-            'is_active' => true
-        ]);
+            [
+                'format_code' => 'music-tracks-v1',
+                'description' => 'Format standar untuk import data musik/lagu dari iTunes atau Spotify',
+                'expected_columns' => [
+                    'Track ID',
+                    'Track Name',
+                    'Artist ID',
+                    'Artist Name',
+                    'Album Name',
+                    'Genre',
+                    'Release Date',
+                    'Track Price',
+                    'Collection Price',
+                    'Country'
+                ],
+                'target_table' => 'tracks',
+                'is_active' => true
+            ]
+        );
 
         // Format alternatif dengan nama kolom Indonesia
         // ExcelFormat::create([
