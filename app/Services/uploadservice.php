@@ -50,110 +50,115 @@ class UploadService
         $originalFilename = $file->getClientOriginalName();
         $storedPath = $file->store('uploads/sellout');
 
-        return $this->processStoredFile(
-            $storedPath,
-            $originalFilename,
-            $format,
-            $mapping,
-            $departmentId,
-            $userId,
-            $uploadMode
-        );
-    }
-
-    /**
-     * Proses file yang sudah disimpan di storage (dipakai oleh job).
-     */
-    public function processStoredFile(
-        string $storedPath,
-        string $originalFilename,
-        ExcelFormat $format,
-        ?MappingConfiguration $mapping = null,
-        ?int $departmentId = null,
-        ?int $userId = null,
-        string $uploadMode = 'append'
-    ) {
-        if (!$departmentId) {
-            throw new \Exception('Department ID is required for upload');
-        }
-
-        $storedFilename = basename($storedPath);
-
         $history = UploadHistory::create([
             'excel_format_id' => $format->id,
             'mapping_configuration_id' => $mapping?->id,
             'department_id' => $departmentId,
             'uploaded_by' => $userId,
             'original_filename' => $originalFilename,
-            'stored_filename' => $storedFilename,
+            'stored_filename' => basename($storedPath),
             'status' => 'pending',
             'upload_mode' => $uploadMode,
-            'uploaded_at' => now()
+            'uploaded_at' => now(),
+            'total_rows' => 0,
+            'success_rows' => 0,
+            'failed_rows' => 0,
         ]);
 
         try {
-            $history->update(['status' => 'processing']);
+            $history->status = 'processing';
+            $history->save();
 
-            $actualTableName = $this->ensureDepartmentTableExists($format, $departmentId);
+            $this->processStoredFile(
+                $history,
+                $storedPath,
+                $format,
+                $mapping,
+                $departmentId,
+                $userId,
+                $uploadMode
+            );
 
-            if ($uploadMode === 'replace') {
-                Log::info('Replace mode: Deleting previous data', [
-                    'table' => $actualTableName,
-                    'department_id' => $departmentId
-                ]);
-
-                DB::table($actualTableName)
-                    ->where('department_id', $departmentId)
-                    ->delete();
-            }
-
-            Log::info('Starting upload process', [
-                'history_id' => $history->id,
-                'base_table' => $format->target_table,
-                'actual_table' => $actualTableName,
-                'department_id' => $departmentId,
-                'upload_mode' => $uploadMode
-            ]);
-
-            $rowsInserted = $this->importData($storedPath, $format, $mapping, $history, $departmentId, $actualTableName);
-
-            FileUpload::create([
-                'upload_history_id' => $history->id,
-                'department_id' => $departmentId,
-                'uploaded_by' => $userId,
-                'original_filename' => $originalFilename,
-                'stored_filename' => $storedFilename,
-                'target_table' => $actualTableName,
-                'format_name' => $format->format_name,
-                'rows_inserted' => $rowsInserted,
-                'upload_mode' => $uploadMode,
-                'uploaded_at' => now()
-            ]);
-
-            $history->update(['status' => 'completed']);
-
-            $this->masterDataService->syncToMasterData($history);
-
-            Log::info('Upload completed successfully', [
-                'history_id' => $history->id,
-                'table' => $actualTableName
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Upload processing error', [
-                'history_id' => $history->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            $history->update([
-                'status' => 'failed',
-                'error_details' => ['message' => $e->getMessage()]
-            ]);
-
+            $history->refresh();
+            $history->status = 'completed';
+            $history->save();
+        } catch (\Throwable $e) {
+            $history->status = 'failed';
+            $history->error_details = ['message' => $e->getMessage()];
+            $history->save();
             throw $e;
         }
 
         return $history;
+    }
+
+    /**
+     * Proses file yang sudah disimpan di storage (dipakai oleh job).
+     */
+    public function processStoredFile(
+        UploadHistory $history,
+        string $storedPath,
+        ExcelFormat $format,
+        ?MappingConfiguration $mapping = null,
+        ?int $departmentId = null,
+        ?int $userId = null,
+        string $uploadMode = 'append'
+    ): int {
+        if (!$departmentId) {
+            throw new \Exception('Department ID is required for upload');
+        }
+
+        $storedFilename = basename($storedPath);
+        if (empty($history->stored_filename)) {
+            $history->stored_filename = $storedFilename;
+            $history->save();
+        }
+
+        $actualTableName = $this->ensureDepartmentTableExists($format, $departmentId);
+
+        if ($uploadMode === 'replace') {
+            Log::info('Replace mode: Deleting previous data', [
+                'table' => $actualTableName,
+                'department_id' => $departmentId
+            ]);
+
+            DB::table($actualTableName)
+                ->where('department_id', $departmentId)
+                ->delete();
+        }
+
+        Log::info('Starting upload process', [
+            'history_id' => $history->id,
+            'base_table' => $format->target_table,
+            'actual_table' => $actualTableName,
+            'department_id' => $departmentId,
+            'upload_mode' => $uploadMode
+        ]);
+
+        $rowsInserted = $this->importData($storedPath, $format, $mapping, $history, $departmentId, $actualTableName);
+
+        FileUpload::create([
+            'upload_history_id' => $history->id,
+            'department_id' => $departmentId,
+            'uploaded_by' => $userId,
+            'original_filename' => $history->original_filename,
+            'stored_filename' => $storedFilename,
+            'target_table' => $actualTableName,
+            'format_name' => $format->format_name,
+            'rows_inserted' => $rowsInserted,
+            'upload_mode' => $uploadMode,
+            'uploaded_at' => now()
+        ]);
+
+        $history->loadMissing('excelFormat');
+        $this->masterDataService->syncToMasterData($history);
+
+        Log::info('Upload completed successfully', [
+            'history_id' => $history->id,
+            'table' => $actualTableName
+        ]);
+
+        return $rowsInserted;
     }
 
     protected function ensureDepartmentTableExists(ExcelFormat $format, int $departmentId): string
@@ -219,6 +224,13 @@ class UploadService
             return $this->insertChunked($table, $rows);
         };
 
+        $progressCallback = function (int $successCount, int $failedCount) use ($history) {
+            $history->success_rows = $successCount;
+            $history->failed_rows = $failedCount;
+            $history->total_rows = $successCount + $failedCount;
+            $history->save();
+        };
+
         $import = new class (
             $actualTableName,
             $history,
@@ -230,6 +242,7 @@ class UploadService
             $transformTrack,
             $applyTransformations,
             $insertCallback,
+            $progressCallback,
             $maxRowsPerBatch
         ) implements OnEachRow, WithHeadingRow, WithChunkReading {
             public int $successCount = 0;
@@ -248,6 +261,7 @@ class UploadService
                 private \Closure $transformTrack,
                 private \Closure $applyTransformations,
                 private $insertCallback,
+                private $progressCallback,
                 private int $batchSize
             ) {
             }
@@ -333,6 +347,8 @@ class UploadService
 
                 call_user_func($this->insertCallback, $this->table, $this->buffer);
                 $this->buffer = [];
+
+                call_user_func($this->progressCallback, $this->successCount, $this->failedCount);
             }
         };
 
@@ -345,12 +361,11 @@ class UploadService
 
         $totalProcessed = $import->successCount + $import->failedCount;
 
-        $history->update([
-            'total_rows' => $totalProcessed,
-            'success_rows' => $import->successCount,
-            'failed_rows' => $import->failedCount,
-            'error_details' => $import->errors
-        ]);
+        $history->error_details = $import->errors;
+        $history->total_rows = $totalProcessed;
+        $history->success_rows = $import->successCount;
+        $history->failed_rows = $import->failedCount;
+        $history->save();
 
         Log::info('Import completed (chunked)', [
             'table' => $actualTableName,

@@ -2,8 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\ExcelFormat;
-use App\Models\MappingConfiguration;
+use App\Models\UploadHistory;
 use App\Services\UploadService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,71 +15,73 @@ class ProcessSelloutImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected string $storedPath;
-    protected string $originalFilename;
-    protected int $formatId;
-    protected ?int $mappingId;
-    protected int $departmentId;
-    protected ?int $userId;
-    protected string $uploadMode;
+    public ?int $historyId;
+    public ?string $filePath;
 
-    /**
-     * @param string $storedPath path relatif di storage (mis. uploads/sellout/xxx.xlsx)
-     */
-    public function __construct(
-        string $storedPath,
-        string $originalFilename,
-        int $formatId,
-        ?int $mappingId,
-        int $departmentId,
-        ?int $userId,
-        string $uploadMode = 'append'
-    ) {
-        $this->storedPath = $storedPath;
-        $this->originalFilename = $originalFilename;
-        $this->formatId = $formatId;
-        $this->mappingId = $mappingId;
-        $this->departmentId = $departmentId;
-        $this->userId = $userId;
-        $this->uploadMode = $uploadMode;
+    public function __construct(int $historyId, string $filePath)
+    {
+        $this->historyId = $historyId;
+        $this->filePath = $filePath;
     }
 
     public function handle(UploadService $uploadService): void
     {
-        Log::info('ProcessSelloutImportJob started', [
-            'stored_path' => $this->storedPath,
-            'format_id' => $this->formatId,
-            'mapping_id' => $this->mappingId,
-            'department_id' => $this->departmentId,
-            'user_id' => $this->userId,
-            'upload_mode' => $this->uploadMode,
-        ]);
+        if (!$this->historyId || !$this->filePath) {
+            Log::warning('Upload job missing payload data', [
+                'history_id' => $this->historyId,
+                'file_path' => $this->filePath,
+            ]);
+            return;
+        }
 
-        $format = ExcelFormat::findOrFail($this->formatId);
-        $mapping = $this->mappingId ? MappingConfiguration::find($this->mappingId) : null;
+        $history = UploadHistory::with(['excelFormat', 'mappingConfiguration'])->find($this->historyId);
+        if (! $history || ! $history->excelFormat) {
+            return;
+        }
 
-        $uploadService->processStoredFile(
-            $this->storedPath,
-            $this->originalFilename,
-            $format,
-            $mapping,
-            $this->departmentId,
-            $this->userId,
-            $this->uploadMode
-        );
+        try {
+            $history->status = 'processing';
+            $history->total_rows = $history->total_rows ?? 0;
+            $history->success_rows = $history->success_rows ?? 0;
+            $history->failed_rows = $history->failed_rows ?? 0;
+            $history->save();
 
-        Log::info('ProcessSelloutImportJob completed', [
-            'stored_path' => $this->storedPath,
-            'history_for_format' => $this->formatId,
-        ]);
-    }
+            $processedRows = $uploadService->processStoredFile(
+                $history,
+                $this->filePath,
+                $history->excelFormat,
+                $history->mappingConfiguration,
+                $history->department_id,
+                $history->uploaded_by,
+                $history->upload_mode ?? 'append'
+            );
 
-    public function failed(\Throwable $exception): void
-    {
-        Log::error('ProcessSelloutImportJob failed', [
-            'stored_path' => $this->storedPath,
-            'format_id' => $this->formatId,
-            'error' => $exception->getMessage(),
-        ]);
+            $history->refresh();
+
+            if (is_int($processedRows)) {
+                $history->success_rows = $processedRows;
+                $history->total_rows = max($history->total_rows, $processedRows + $history->failed_rows);
+            }
+
+            $history->status = 'completed';
+            $history->save();
+
+            Log::info('Upload job finished', [
+                'history_id' => $history->id,
+                'status' => $history->status,
+                'rows' => $history->success_rows,
+            ]);
+        } catch (\Throwable $e) {
+            $history->status = 'failed';
+            $history->error_details = ['message' => $e->getMessage()];
+            $history->save();
+
+            Log::error('Upload job failed', [
+                'history_id' => $history->id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+        }
     }
 }

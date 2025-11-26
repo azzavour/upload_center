@@ -45,6 +45,9 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @php
+                        $displayTimezone = config('app.display_timezone', config('app.timezone', 'UTC'));
+                    @endphp
                     @foreach($histories as $history)
                     <tr>
                         <td>{{ $loop->iteration }}</td>
@@ -106,7 +109,7 @@
                             </div>
                         </td>
                         <td>
-                            <small>{{ $history->uploaded_at->format('d M Y H:i') }}</small>
+                            <small>{{ $history->uploaded_at->timezone($displayTimezone)->format('d M Y H:i') }}</small>
                         </td>
                         <td>
                             <a href="{{ route('history.show', $history->id) }}" class="btn btn-sm btn-outline-primary">
@@ -130,3 +133,11 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    setInterval(function () {
+        window.location.reload();
+    }, 30000);
+</script>
+@endpush

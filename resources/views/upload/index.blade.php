@@ -299,14 +299,37 @@ document.getElementById('checkBtn').addEventListener('click', async function() {
 
             // Create Body
             const tbody = document.createElement('tbody');
+            // Normalize header names so we can read associative row data reliably
+            const headerKeys = result.preview.headers.map((header) => ({
+                original: header.name,
+                normalized: header.name
+                    .toString()
+                    .trim()
+                    .toLowerCase()
+                    .replace(/\s+/g, '_')
+                    .replace(/[^a-z0-9_]/g, '')
+            }));
+
             result.preview.data.forEach(rowData => {
                 const tr = document.createElement('tr');
-                for (let i = 0; i < result.preview.headers.length; i++) {
+
+                headerKeys.forEach((headerKey, index) => {
                     const td = document.createElement('td');
                     td.className = 'small';
-                    td.textContent = rowData[i] || '';
+
+                    let value = '';
+                    if (Array.isArray(rowData)) {
+                        value = rowData[index] ?? '';
+                    } else if (rowData && typeof rowData === 'object') {
+                        value = rowData[headerKey.original] ??
+                                rowData[headerKey.normalized] ??
+                                '';
+                    }
+
+                    td.textContent = value ?? '';
                     tr.appendChild(td);
-                }
+                });
+
                 tbody.appendChild(tr);
             });
             table.appendChild(tbody);
