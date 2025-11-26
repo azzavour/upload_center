@@ -32,9 +32,9 @@ class UploadFileRequest extends FormRequest
                         $fail('File harus berformat XLSX, XLS, atau CSV');
                     }
                     
-                    // Validasi ukuran file (10MB)
-                    if ($value->getSize() > 10 * 1024 * 1024) {
-                        $fail('Ukuran file maksimal 10MB');
+                    // Validasi ukuran file (40MB)
+                    if ($value->getSize() > 40 * 1024 * 1024) {
+                        $fail('Ukuran file maksimal 40MB');
                     }
                 },
             ],

@@ -28,10 +28,6 @@
                         </option>
                     @endforeach
                 </select>
-                <div class="form-text">
-                    <i class="fas fa-info-circle"></i> 
-                    Format yang diharapkan: Track ID, Track Name, Artist ID, Artist Name, Album Name, Genre, Release Date, Track Price, Collection Price, Country
-                </div>
             </div>
 
             <!-- File Upload -->
@@ -48,7 +44,7 @@
                         <input id="file-upload" name="file" type="file" class="d-none" required>
                         <p class="text-muted mb-0 mt-2">atau drag and drop</p>
                     </div>
-                    <small class="text-muted">XLSX, XLS, CSV hingga 10MB</small>
+                    <small class="text-muted">XLSX, XLS, CSV hingga 40MB</small>
                     <p id="file-name" class="text-success fw-bold mt-2"></p>
                 </div>
             </div>
@@ -145,7 +141,7 @@
         </h5>
         <ul class="mb-0 small">
             <li><strong>Pastikan file Excel memiliki header di baris pertama</strong></li>
-            <li><strong>Format file yang didukung:</strong> XLSX, XLS, CSV (maksimal 10MB)</li>
+            <li><strong>Format file yang didukung:</strong> XLSX, XLS, CSV (maksimal 40MB)</li>
             <li><strong>Pilih format yang sesuai</strong> dengan data yang akan diupload</li>
             <li><strong>Mode Upload:</strong>
                 <ul class="mt-1">
@@ -210,8 +206,8 @@ document.getElementById('file-upload').addEventListener('change', function(e) {
             return;
         }
         
-        if (file.size > 10 * 1024 * 1024) {
-            alert('Ukuran file maksimal 10MB');
+        if (file.size > 40 * 1024 * 1024) {
+            alert('Ukuran file maksimal 40MB');
             this.value = '';
             fileNameDisplay.textContent = '';
             return;

@@ -95,4 +95,41 @@ class HistoryController extends Controller
 
         return view('history.show', compact('history', 'importedData', 'tableColumns', 'targetTable'));
     }
+
+    /**
+     * Batalkan proses upload (menandai failed dan mencegah inser lebih lanjut).
+     */
+    public function cancel($id)
+    {
+        $user = Auth::user();
+        $departmentId = $user->isAdmin() ? null : $user->department_id;
+        $history = $this->uploadService->getUploadById($id, $departmentId);
+
+        if (in_array($history->status, ['completed', 'failed'])) {
+            return redirect()->back()->with('error', 'Upload ini sudah selesai atau gagal.');
+        }
+
+        $details = $history->error_details ?? [];
+        if (!is_array($details)) {
+            $details = [];
+        }
+        $details[] = [
+            'message' => 'Dibatalkan oleh user',
+            'time' => now()->toDateTimeString()
+        ];
+
+        $history->update([
+            'status' => 'failed',
+            'error_details' => $details
+        ]);
+
+        // Opsional: hapus job pending yang memuat stored_filename di payload
+        if ($history->stored_filename) {
+            DB::table('jobs')
+                ->where('payload', 'like', '%' . $history->stored_filename . '%')
+                ->delete();
+        }
+
+        return redirect()->route('history.index')->with('success', 'Proses upload dibatalkan.');
+    }
 }

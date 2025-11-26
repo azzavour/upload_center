@@ -39,6 +39,15 @@ class ExcelFormatService
                 fn($col) => $this->tableManager->normalizeColumnName($col),
                 $data['expected_columns']
             );
+
+            // Validasi: tidak boleh ada nama kolom duplikat setelah dinormalisasi
+            $counts = array_count_values($data['expected_columns']);
+            $duplicates = array_keys(array_filter($counts, fn($count) => $count > 1));
+            if (!empty($duplicates)) {
+                throw new \Exception(
+                    'Kolom tidak boleh duplikat: ' . implode(', ', $duplicates) . '. Gunakan nama kolom yang unik.'
+                );
+            }
         }
         
         // ✅ PERBAIKAN: Buat tabel dengan prefix department

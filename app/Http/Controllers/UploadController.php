@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Services\UploadService;
 use App\Services\ExcelFormatService;
 use App\Services\MappingService;
+use App\Jobs\ProcessSelloutImportJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
+use PhpOffice\PhpSpreadsheet\Settings;
 
 class UploadController extends Controller
 {
@@ -54,6 +56,9 @@ class UploadController extends Controller
             return response()->json(['error' => true, 'message' => 'File tidak ditemukan'], 400);
         }
 
+        // Long-running preview for large files needs higher memory
+        @ini_set('memory_limit', '2048M');
+        
         $extension = strtolower($file->getClientOriginalExtension());
         $validExtensions = ['xlsx', 'xls', 'csv'];
         
@@ -64,8 +69,8 @@ class UploadController extends Controller
             ], 400);
         }
 
-        if ($file->getSize() > 10 * 1024 * 1024) {
-            return response()->json(['error' => true, 'message' => 'Ukuran file maksimal 10MB'], 400);
+        if ($file->getSize() > 40 * 1024 * 1024) {
+            return response()->json(['error' => true, 'message' => 'Ukuran file maksimal 40MB'], 400);
         }
 
         if (!$request->format_id) {
@@ -209,6 +214,9 @@ class UploadController extends Controller
                 return response()->json(['error' => true, 'message' => 'File tidak ditemukan'], 400);
             }
 
+            // Pastikan proses upload tidak cepat kehabisan memori untuk file besar
+            @ini_set('memory_limit', '2048M');
+
             $extension = strtolower($file->getClientOriginalExtension());
             $validExtensions = ['xlsx', 'xls', 'csv'];
             
@@ -216,8 +224,8 @@ class UploadController extends Controller
                 return response()->json(['error' => true, 'message' => 'File harus berformat XLSX, XLS, atau CSV'], 400);
             }
 
-            if ($file->getSize() > 10 * 1024 * 1024) {
-                return response()->json(['error' => true, 'message' => 'Ukuran file maksimal 10MB'], 400);
+            if ($file->getSize() > 40 * 1024 * 1024) {
+                return response()->json(['error' => true, 'message' => 'Ukuran file maksimal 40MB'], 400);
             }
 
             if (!$request->format_id) {
@@ -261,18 +269,25 @@ class UploadController extends Controller
 
             // Get upload mode from request (default to 'append')
             $uploadMode = $request->input('upload_mode', 'append');
-            
-            $history = $this->uploadService->processUpload(
-                $request->file('file'),
-                $format,
-                $mapping,
-                $departmentId, // Pastikan ini tidak null
+
+            // Simpan file lalu antrikan job
+            $storedPath = $file->store('uploads/sellout');
+            $originalFilename = $file->getClientOriginalName();
+
+            ProcessSelloutImportJob::dispatch(
+                $storedPath,
+                $originalFilename,
+                $format->id,
+                $mapping?->id,
+                $departmentId,
                 $user->id,
                 $uploadMode
             );
 
             return response()->json([
-                'redirect' => route('history.show', $history->id),
+                'queued' => true,
+                'message' => 'File accepted and queued for processing.',
+                'redirect' => route('history.index')
             ]);
                 
         } catch (\Throwable $e) {
@@ -291,7 +306,7 @@ class UploadController extends Controller
     /**
      * Baca header dan sample baris (maks 50) tanpa memuat seluruh file ke memori.
      */
-    private function extractPreviewRows($file, int $maxRows = 50): array
+    private function extractPreviewRows($file, int $maxRows = 4): array
     {
         $ext = strtolower($file->getClientOriginalExtension());
 
@@ -315,6 +330,7 @@ class UploadController extends Controller
         }
 
         // XLS/XLSX: pakai PhpSpreadsheet ReadFilter, hanya baca maksimal $maxRows
+        // Gunakan disk caching supaya tidak habiskan memori
         $filter = new class($maxRows) implements IReadFilter {
             public function __construct(private int $maxRows) {}
             public function readCell($column, $row, $worksheetName = ''): bool
@@ -323,21 +339,40 @@ class UploadController extends Controller
             }
         };
 
+        // Catatan: Versi PhpSpreadsheet yang terpasang tidak mendukung pengaturan cache storage,
+        // jadi kita hanya gunakan read filter + readDataOnly untuk membatasi memori.
+
         $reader = IOFactory::createReaderForFile($file->getPathname());
         $reader->setReadDataOnly(true);
         $reader->setReadFilter($filter);
+        if (method_exists($reader, 'setReadEmptyCells')) {
+            $reader->setReadEmptyCells(false);
+        }
 
         $spreadsheet = $reader->load($file->getPathname());
         $sheet = $spreadsheet->getSheet(0);
 
-        $highestColumn = $sheet->getHighestColumn();
-        $headers = $sheet->rangeToArray("A1:{$highestColumn}1", null, true, true, true)[1] ?? [];
-        $headers = collect($headers)->map(fn($h) => trim((string) $h))->filter()->values()->all();
+        $rows = [];
+        $rowIterator = $sheet->getRowIterator(1, $maxRows);
+        foreach ($rowIterator as $row) {
+            $cellIterator = $row->getCellIterator();
+            if (method_exists($cellIterator, 'setIterateOnlyExistingCells')) {
+                $cellIterator->setIterateOnlyExistingCells(true);
+            }
+            $rowData = [];
+            foreach ($cellIterator as $cell) {
+                $rowData[] = trim((string) $cell->getValue());
+            }
+            $rows[] = $rowData;
+            if (count($rows) >= $maxRows) {
+                break;
+            }
+        }
 
-        $sampleRange = $sheet->rangeToArray("A2:{$highestColumn}".($maxRows), null, true, true, true);
-        $sample = collect($sampleRange)->values()->map(function ($row) {
+        $headers = collect($rows[0] ?? [])->filter(fn($h) => $h !== '')->values()->all();
+        $sample = collect($rows)->slice(1)->take(3)->map(function ($row) {
             return array_values($row);
-        })->take(3)->all();
+        })->all();
 
         // Bebaskan memory
         $spreadsheet->disconnectWorksheets();

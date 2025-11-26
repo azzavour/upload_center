@@ -152,7 +152,7 @@
                 <div class="col-md-3">
                     <div class="stat-card">
                         <i class="fas fa-file-excel stat-number"></i>
-                        <h3 class="stat-number">10MB</h3>
+                        <h3 class="stat-number">40MB</h3>
                         <p class="text-muted">Max File Size</p>
                     </div>
                 </div>

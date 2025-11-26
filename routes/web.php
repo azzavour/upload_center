@@ -54,6 +54,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('history')->name('history.')->group(function () {
         Route::get('/', [HistoryController::class, 'index'])->name('index');
         Route::get('/{id}', [HistoryController::class, 'show'])->name('show');
+        Route::post('/{id}/cancel', [HistoryController::class, 'cancel'])->name('cancel');
     });
 });
 

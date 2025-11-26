@@ -7,6 +7,10 @@ use App\Models\ExcelFormat;
 use App\Models\MappingConfiguration;
 use App\Models\FileUpload;
 use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Concerns\OnEachRow;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Row;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -32,27 +36,48 @@ class UploadService
     }
 
     public function processUpload(
-        $file, 
-        ExcelFormat $format, 
+        $file,
+        ExcelFormat $format,
         ?MappingConfiguration $mapping = null,
         ?int $departmentId = null,
         ?int $userId = null,
         string $uploadMode = 'append'
     ) {
-        // Validasi department ID
         if (!$departmentId) {
             throw new \Exception('Department ID is required for upload');
         }
 
         $originalFilename = $file->getClientOriginalName();
-        $storedFilename = time() . '_' . $originalFilename;
-        
-        $uploadDir = storage_path('app/uploads');
-        if (!file_exists($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        $storedPath = $file->store('uploads/sellout');
+
+        return $this->processStoredFile(
+            $storedPath,
+            $originalFilename,
+            $format,
+            $mapping,
+            $departmentId,
+            $userId,
+            $uploadMode
+        );
+    }
+
+    /**
+     * Proses file yang sudah disimpan di storage (dipakai oleh job).
+     */
+    public function processStoredFile(
+        string $storedPath,
+        string $originalFilename,
+        ExcelFormat $format,
+        ?MappingConfiguration $mapping = null,
+        ?int $departmentId = null,
+        ?int $userId = null,
+        string $uploadMode = 'append'
+    ) {
+        if (!$departmentId) {
+            throw new \Exception('Department ID is required for upload');
         }
-        
-        $path = $file->storeAs('uploads', $storedFilename);
+
+        $storedFilename = basename($storedPath);
 
         $history = UploadHistory::create([
             'excel_format_id' => $format->id,
@@ -68,22 +93,20 @@ class UploadService
 
         try {
             $history->update(['status' => 'processing']);
-            
-            // ✅ PERBAIKAN: Pastikan tabel dengan prefix department dibuat/ada
+
             $actualTableName = $this->ensureDepartmentTableExists($format, $departmentId);
-            
-            // ✅ BARU: Handle replace mode - delete previous data from same format
+
             if ($uploadMode === 'replace') {
                 Log::info('Replace mode: Deleting previous data', [
                     'table' => $actualTableName,
                     'department_id' => $departmentId
                 ]);
-                
+
                 DB::table($actualTableName)
                     ->where('department_id', $departmentId)
                     ->delete();
             }
-            
+
             Log::info('Starting upload process', [
                 'history_id' => $history->id,
                 'base_table' => $format->target_table,
@@ -91,10 +114,9 @@ class UploadService
                 'department_id' => $departmentId,
                 'upload_mode' => $uploadMode
             ]);
-            
-            $rowsInserted = $this->importData($path, $format, $mapping, $history, $departmentId, $actualTableName);
-            
-            // ✅ BARU: Create FileUpload record for tracking
+
+            $rowsInserted = $this->importData($storedPath, $format, $mapping, $history, $departmentId, $actualTableName);
+
             FileUpload::create([
                 'upload_history_id' => $history->id,
                 'department_id' => $departmentId,
@@ -107,70 +129,62 @@ class UploadService
                 'upload_mode' => $uploadMode,
                 'uploaded_at' => now()
             ]);
-            
+
             $history->update(['status' => 'completed']);
-            
-            // Sinkronisasi ke master data
+
             $this->masterDataService->syncToMasterData($history);
-            
+
             Log::info('Upload completed successfully', [
                 'history_id' => $history->id,
                 'table' => $actualTableName
             ]);
-            
         } catch (\Exception $e) {
             Log::error('Upload processing error', [
                 'history_id' => $history->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             $history->update([
                 'status' => 'failed',
                 'error_details' => ['message' => $e->getMessage()]
             ]);
-            
+
             throw $e;
         }
 
         return $history;
     }
 
-    /**
-     * ✅ BARU: Ensure department-specific table exists
-     */
     protected function ensureDepartmentTableExists(ExcelFormat $format, int $departmentId): string
     {
         $actualTableName = $this->tableManager->getActualTableName($format->target_table, $departmentId);
-        
-        // Cek apakah tabel sudah ada
+
         if (!$this->tableManager->tableExists($format->target_table, $departmentId)) {
             Log::info('Creating department table', [
                 'base_table' => $format->target_table,
                 'actual_table' => $actualTableName,
                 'department_id' => $departmentId
             ]);
-            
-            // Buat tabel baru dengan kolom dari format
+
             $this->tableManager->createDynamicTable(
                 $format->target_table,
                 $format->expected_columns,
                 $departmentId
             );
         }
-        
+
         return $actualTableName;
     }
 
     protected function importData(
-        $path, 
-        ExcelFormat $format, 
-        ?MappingConfiguration $mapping, 
-        UploadHistory $history, 
+        $path,
+        ExcelFormat $format,
+        ?MappingConfiguration $mapping,
+        UploadHistory $history,
         ?int $departmentId,
-        string $actualTableName // ✅ BARU: Terima actual table name sebagai parameter
+        string $actualTableName
     ) {
-        // Bypass 60s timeout saat memproses file besar
         if (function_exists('set_time_limit')) {
             @set_time_limit(0);
         }
@@ -179,155 +193,179 @@ class UploadService
             throw new \Exception('File ' . $path . ' tidak ditemukan di dalam storage.');
         }
 
-        $data = Excel::toArray([], $path);
-        
-        if (empty($data) || empty($data[0])) {
-            throw new \Exception('File Excel kosong atau tidak bisa dibaca.');
-        }
-        
-        $rows = $data[0];
-        
-        $headers = array_shift($rows);
-        $headers = array_map('trim', $headers);
-        $headers = array_filter($headers, fn($h) => $h !== '');
-        $headers = array_values($headers);
-        
-        if (empty($headers)) {
-            throw new \Exception('File Excel tidak memiliki header yang valid.');
-        }
-        
-        $successCount = 0;
-        $failedCount = 0;
-        $errors = [];
-        $warnings = [];
+        $fullPath = Storage::path($path);
 
-        Log::info('Importing to department table', [
-            'base_table' => $format->target_table,
-            'actual_table' => $actualTableName,
-            'department_id' => $departmentId,
-            'total_rows' => count($rows)
-        ]);
-
-        // ✅ PERBAIKAN: Gunakan actual table name
         $validColumns = $this->getTableColumns($actualTableName);
-        
         if (empty($validColumns)) {
             throw new \Exception("Tabel {$actualTableName} tidak ditemukan atau tidak memiliki kolom.");
         }
 
-        Log::info('Valid columns for import', [
-            'table' => $actualTableName,
-            'columns' => $validColumns
-        ]);
+        $validColumnFlipped = array_flip($validColumns);
+        $mappingColumns = $mapping?->column_mapping ?? [];
+        $transformationRules = $mapping?->transformation_rules ?? [];
 
-        DB::beginTransaction();
-        
-        try {
-            foreach ($rows as $index => $row) {
-                if (empty(array_filter($row))) {
-                    continue;
+        $transformTrack = function (array $data) {
+            return $this->transformTrackData($data);
+        };
+        $applyTransformations = function (array $data, ?array $rules = null) {
+            return $rules ? $this->applyTransformations($data, $rules) : $data;
+        };
+
+        $maxParams = 2000; // jaga di bawah limit 2100
+        $columnsCount = max(1, count($validColumnFlipped));
+        $maxRowsPerBatch = max(1, intdiv($maxParams, $columnsCount));
+
+        $insertCallback = function (string $table, array $rows) {
+            return $this->insertChunked($table, $rows);
+        };
+
+        $import = new class (
+            $actualTableName,
+            $history,
+            $departmentId,
+            $mappingColumns,
+            $transformationRules,
+            $validColumnFlipped,
+            $this->mappingService,
+            $transformTrack,
+            $applyTransformations,
+            $insertCallback,
+            $maxRowsPerBatch
+        ) implements OnEachRow, WithHeadingRow, WithChunkReading {
+            public int $successCount = 0;
+            public int $failedCount = 0;
+            public array $errors = [];
+            private array $buffer = [];
+
+            public function __construct(
+                private string $table,
+                private UploadHistory $history,
+                private int $departmentId,
+                private array $mappingColumns,
+                private array $transformationRules,
+                private array $validColumnFlipped,
+                private MappingService $mappingService,
+                private \Closure $transformTrack,
+                private \Closure $applyTransformations,
+                private $insertCallback,
+                private int $batchSize
+            ) {
+            }
+
+            public function onRow(Row $row)
+            {
+                // Hormati pembatalan manual: jika status sudah bukan pending/processing, hentikan
+                $this->history->refresh();
+                if (!in_array($this->history->status, ['pending', 'processing'])) {
+                    $this->buffer = [];
+                    return;
+                }
+
+                $rowArray = $row->toArray();
+
+                $nonEmpty = array_filter($rowArray, fn($v) => $v !== null && $v !== '');
+                if (empty($nonEmpty)) {
+                    return;
                 }
 
                 try {
-                    $rowData = array_combine($headers, array_slice($row, 0, count($headers)));
-                    
-                    // Apply mapping jika ada
-                    if ($mapping) {
-                        $rowData = $this->mappingService->applyMapping($rowData, $mapping->column_mapping);
-                        
-                        if ($mapping->transformation_rules) {
-                            $rowData = $this->applyTransformations($rowData, $mapping->transformation_rules);
-                        }
-                    }
-                    
-                    // Transform data (dates, prices, etc)
-                    $rowData = $this->transformTrackData($rowData);
-                    
-                    // ✅ CRITICAL: Add upload_history_id and department_id
-                    $rowData['upload_history_id'] = $history->id;
-                    $rowData['department_id'] = $departmentId;
-                    $rowData['created_at'] = now();
-                    $rowData['updated_at'] = now();
-
-                    // Filter only valid columns
-                    $originalKeys = array_keys($rowData);
-                    $filteredData = array_intersect_key($rowData, array_flip($validColumns));
-
-                    $ignoredColumns = array_diff($originalKeys, $validColumns);
-
-                    if (!empty($ignoredColumns)) {
-                        $warnings[] = [
-                            'row' => $index + 2,
-                            'ignored_columns' => array_values($ignoredColumns)
-                        ];
+                    if (!empty($this->mappingColumns)) {
+                        $rowArray = $this->mappingService->applyMapping($rowArray, $this->mappingColumns);
                     }
 
-                    if (!empty($filteredData)) {
-                        // Insert per-row untuk menghindari limit 2100 parameter SQL Server
-                        $rowsToInsert = is_array(reset($filteredData)) ? $filteredData : [$filteredData];
+                    if (!empty($this->transformationRules)) {
+                        $rowArray = ($this->applyTransformations)($rowArray, $this->transformationRules);
+                    }
 
-                        foreach ($rowsToInsert as $rowToInsert) {
-                            DB::table($actualTableName)->insert($rowToInsert);
-                            $successCount++;
-                        }
-                    } else {
+                    $rowArray = ($this->transformTrack)($rowArray);
+
+                    $rowArray['upload_history_id'] = $this->history->id;
+                    $rowArray['department_id'] = $this->departmentId;
+                    $rowArray['created_at'] = now();
+                    $rowArray['updated_at'] = now();
+
+                    $filtered = array_intersect_key($rowArray, $this->validColumnFlipped);
+
+                    if (empty($filtered)) {
                         throw new \Exception('Tidak ada kolom valid untuk di-insert');
                     }
 
-                } catch (\Exception $e) {
-                    $failedCount++;
-                    if (count($errors) < 100) { // batasi agar tidak memakan memori
-                        $errors[] = [
-                            'row' => $index + 2,
-                            'data' => $rowData ?? [],
+                    $this->buffer[] = $filtered;
+
+                    if (count($this->buffer) >= $this->batchSize) {
+                        $this->flush();
+                    }
+
+                    $this->successCount++;
+                } catch (\Throwable $e) {
+                    $this->failedCount++;
+                    if (count($this->errors) < 100) {
+                        $this->errors[] = [
+                            'row' => $row->getIndex(),
                             'error' => $e->getMessage()
                         ];
                     }
-                    
                     Log::warning('Row import failed', [
-                        'table' => $actualTableName,
-                        'row_index' => $index + 2,
+                        'table' => $this->table,
+                        'row_index' => $row->getIndex(),
                         'error' => $e->getMessage()
                     ]);
                 }
             }
 
-            DB::commit();
-            
-            Log::info('Import transaction completed', [
-                'table' => $actualTableName,
-                'total_rows' => count($rows),
-                'success' => $successCount,
-                'failed' => $failedCount
-            ]);
-            
-            $history->update([
-                'total_rows' => count($rows),
-                'success_rows' => $successCount,
-                'failed_rows' => $failedCount,
-                'error_details' => array_merge(
-                    $errors,
-                    array_map(fn($w) => ['type' => 'warning'] + $w, $warnings)
-                )
-            ]);
-            
-            return $successCount; // Return number of successfully inserted rows
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Import transaction failed', [
-                'table' => $actualTableName,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw $e;
+            public function chunkSize(): int
+            {
+                return 500;
+            }
+
+            public function flush(): void
+            {
+                if (empty($this->buffer)) {
+                    return;
+                }
+
+                // Jangan insert lagi jika status sudah dibatalkan/failed
+                $this->history->refresh();
+                if (!in_array($this->history->status, ['pending', 'processing'])) {
+                    $this->buffer = [];
+                    return;
+                }
+
+                call_user_func($this->insertCallback, $this->table, $this->buffer);
+                $this->buffer = [];
+            }
+        };
+
+        Excel::import($import, $fullPath);
+
+        // Flush sisa buffer jika method tersedia (anonymous class di atas mendefinisikan flush)
+        if (method_exists($import, 'flush')) {
+            call_user_func([$import, 'flush']);
         }
+
+        $totalProcessed = $import->successCount + $import->failedCount;
+
+        $history->update([
+            'total_rows' => $totalProcessed,
+            'success_rows' => $import->successCount,
+            'failed_rows' => $import->failedCount,
+            'error_details' => $import->errors
+        ]);
+
+        Log::info('Import completed (chunked)', [
+            'table' => $actualTableName,
+            'total_rows' => $totalProcessed,
+            'success' => $import->successCount,
+            'failed' => $import->failedCount
+        ]);
+
+        return $import->successCount;
     }
 
     protected function getTableColumns(string $tableName): array
     {
         $lowerTableName = strtolower($tableName);
-        
+
         try {
             $columns = DB::select("SELECT column_name FROM information_schema.columns WHERE table_name = ?", [$lowerTableName]);
             return collect($columns)->pluck('column_name')->toArray();
@@ -342,11 +380,9 @@ class UploadService
 
     protected function transformTrackData(array $data)
     {
-        // Transform release_date
         if (isset($data['release_date']) && !empty($data['release_date'])) {
             try {
                 if (is_numeric($data['release_date'])) {
-                    // Excel serial number
                     $data['release_date'] = Carbon::createFromFormat('Y-m-d', '1900-01-01')
                         ->addDays($data['release_date'] - 2)
                         ->format('Y-m-d');
@@ -357,31 +393,35 @@ class UploadService
                 $data['release_date'] = null;
             }
         }
-        
-        // Transform prices
+
         if (isset($data['track_price'])) {
             $data['track_price'] = preg_replace('/[^0-9.]/', '', $data['track_price']);
             $data['track_price'] = $data['track_price'] ?: null;
         }
-        
+
         if (isset($data['collection_price'])) {
             $data['collection_price'] = preg_replace('/[^0-9.]/', '', $data['collection_price']);
             $data['collection_price'] = $data['collection_price'] ?: null;
         }
-        
-        // Transform country
+
         if (isset($data['country'])) {
             $data['country'] = strtoupper(substr($data['country'], 0, 10));
         }
-        
+
         return $data;
     }
 
-    protected function applyTransformations(array $data, array $rules)
+    protected function applyTransformations(array $data, ?array $rules = null)
     {
+        if (empty($rules)) {
+            return $data;
+        }
+
         foreach ($rules as $field => $rule) {
-            if (!isset($data[$field]) || empty($rule['type'])) continue;
-            
+            if (!isset($data[$field]) || empty($rule['type'])) {
+                continue;
+            }
+
             switch ($rule['type']) {
                 case 'uppercase':
                     $data[$field] = strtoupper($data[$field]);
@@ -397,34 +437,61 @@ class UploadService
                         $data[$field] = Carbon::parse($data[$field])
                             ->format($rule['format'] ?? 'Y-m-d');
                     } catch (\Exception $e) {
-                        // Keep original
+                        // keep original value
                     }
                     break;
             }
         }
-        
+
         return $data;
     }
 
     public function getUploadHistory(?int $departmentId = null)
     {
         $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader', 'department']);
-        
+
         if ($departmentId) {
             $query->where('department_id', $departmentId);
         }
-        
+
         return $query->orderBy('uploaded_at', 'desc')->get();
     }
 
     public function getUploadById(int $id, ?int $departmentId = null)
     {
         $query = UploadHistory::with(['excelFormat', 'mappingConfiguration', 'uploader', 'department']);
-        
+
         if ($departmentId) {
             $query->where('department_id', $departmentId);
         }
-        
+
         return $query->findOrFail($id);
+    }
+
+    /**
+     * Insert rows dalam batch untuk menghindari limit 2100 parameter SQL Server.
+     */
+    public function insertChunked(string $table, array $rows): void
+    {
+        if (empty($rows)) {
+            return;
+        }
+
+        $first = reset($rows);
+        $columnsCount = max(1, count(array_keys($first)));
+        $maxParams = 2000;
+        $maxRowsPerBatch = max(1, intdiv($maxParams, $columnsCount));
+        $batches = array_chunk($rows, $maxRowsPerBatch);
+
+        DB::beginTransaction();
+        try {
+            foreach ($batches as $batch) {
+                DB::table($table)->insert($batch);
+            }
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 }

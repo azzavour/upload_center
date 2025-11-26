@@ -12,6 +12,13 @@
     </div>
 
     <div class="card-body">
+        @if(session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+
         @if($histories->isEmpty())
         <div class="text-center py-5">
             <i class="fas fa-inbox text-muted" style="font-size: 4rem;"></i>
@@ -105,6 +112,14 @@
                             <a href="{{ route('history.show', $history->id) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-eye"></i>
                             </a>
+                            @if(in_array($history->status, ['pending', 'processing']))
+                            <form action="{{ route('history.cancel', $history->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Batalkan proses upload ini?');">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                            </form>
+                            @endif
                         </td>
                     </tr>
                     @endforeach
