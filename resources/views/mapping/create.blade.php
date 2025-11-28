@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Buat Data Mapping')
+@section('title', 'Create Data Mapping')
 
 @section('content')
 <div class="card shadow-sm">
     <div class="card-header bg-white border-bottom">
         <h2 class="mb-0">
-            <i class="fas fa-project-diagram text-primary me-2"></i>Buat Data Mapping
+            <i class="fas fa-project-diagram text-primary me-2"></i>Create Data Mapping
         </h2>
-        <p class="text-muted mb-0 mt-2">Mapping kolom Excel ke kolom database untuk format: <strong>{{ $format->format_name }}</strong></p>
+        <p class="text-muted mb-0 mt-2">Map Excel columns to database columns for: <strong>{{ $format->format_name }}</strong></p>
     </div>
 
     <div class="card-body">
@@ -27,20 +27,20 @@
             <!-- Mapping Name & Description -->
             <div class="alert alert-primary" role="alert">
                 <h6 class="alert-heading">
-                    <i class="fas fa-tag me-2"></i>Informasi Mapping
+                    <i class="fas fa-tag me-2"></i>Mapping Information
                 </h6>
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-bold">
-                            Nama Mapping <span class="text-danger">*</span>
+                            Mapping Name <span class="text-danger">*</span>
                         </label>
                         <input type="text" name="mapping_name" required class="form-control"
-                            placeholder="Contoh: Mapping Data Lagu Spotify 2025">
+                            placeholder="Example: Spotify Track Mapping 2025">
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label fw-bold">Deskripsi</label>
+                        <label class="form-label fw-bold">Description</label>
                         <textarea name="description" rows="2" class="form-control"
-                            placeholder="Deskripsi singkat (opsional)"></textarea>
+                            placeholder="Brief optional description"></textarea>
                     </div>
                 </div>
             </div>
@@ -49,7 +49,7 @@
             <!-- Excel Columns Detected -->
             <div class="alert alert-success" role="alert">
                 <i class="fas fa-check-circle me-2"></i>
-                <strong>Kolom Excel yang Terdeteksi:</strong>
+                <strong>Detected Excel Columns:</strong>
                 <div class="mt-2">
                     @foreach($excelColumns as $col)
                     <span class="badge bg-success me-1 mb-1">{{ $col }}</span>
@@ -62,10 +62,10 @@
             <div class="card mb-4">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">
-                        <i class="fas fa-table me-2"></i>Pemetaan Kolom
+                        <i class="fas fa-table me-2"></i>Column Mapping
                     </h6>
                     <button type="button" onclick="addMappingRow()" class="btn btn-sm btn-primary">
-                        <i class="fas fa-plus me-1"></i>Tambah Baris
+                        <i class="fas fa-plus me-1"></i>Add Row
                     </button>
                 </div>
                 <div class="card-body">
@@ -73,10 +73,10 @@
                         <table class="table table-bordered" id="mappingTable">
                             <thead class="table-light">
                                 <tr>
-                                    <th width="40%">Kolom Excel</th>
+                                    <th width="40%">Excel Column</th>
                                     <th class="text-center" width="50"><i class="fas fa-arrow-right"></i></th>
-                                    <th width="40%">Kolom Database</th>
-                                    <th width="100">Aksi</th>
+                                    <th width="40%">Database Column</th>
+                                    <th width="100">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="mappingBody">
@@ -84,14 +84,14 @@
                                 <tr class="mapping-row">
                                     <td>
                                         <input type="text" class="form-control excel-column-input" 
-                                            placeholder="Masukkan nama kolom Excel" required>
+                                            placeholder="Enter Excel column name" required>
                                     </td>
                                     <td class="text-center align-middle">
                                         <i class="fas fa-long-arrow-alt-right text-muted"></i>
                                     </td>
                                     <td>
                                         <select class="form-select db-column-input" required>
-                                            <option value="">-- Pilih Kolom Database --</option>
+                                            <option value="">-- Select Database Column --</option>
                                             @foreach($format->expected_columns as $col)
                                             <option value="{{ $col }}">{{ $col }}</option>
                                             @endforeach
@@ -114,19 +114,19 @@
                 <i class="fas fa-lightbulb me-2"></i>
                 <strong>Tips:</strong>
                 <ul class="mb-0 mt-2">
-                    <li>Kolom Excel harus persis sama dengan nama kolom di file Excel Anda (case-sensitive)</li>
-                    <li>Kolom Database akan otomatis dinormalisasi (lowercase, underscore, no special chars)</li>
+                    <li>Excel column names must match your file headers exactly (case-sensitive).</li>
+                    <li>Database column names are normalized automatically (lowercase, underscores, no special characters).</li>
                     <li>Target table: <code>{{ $format->target_table }}</code></li>
                 </ul>
             </div>
 
             <!-- Action Buttons -->
             <div class="d-flex justify-content-between">
-                <a href="{{ route('upload.index') }}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left me-2"></i>Kembali
+                <a href="{{ route('upload.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back
                 </a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Simpan Mapping
+                    <i class="fas fa-save me-2"></i>Save Mapping
                 </button>
             </div>
         </form>
@@ -145,7 +145,7 @@ function addMappingRow() {
     tr.className = 'mapping-row';
     
     // Build dropdown options
-    let options = '<option value="">-- Pilih Kolom Database --</option>';
+    let options = '<option value="">-- Select Database Column --</option>';
     dbColumns.forEach(col => {
         options += `<option value="${col}">${col}</option>`;
     });
@@ -153,7 +153,7 @@ function addMappingRow() {
     tr.innerHTML = `
         <td>
             <input type="text" class="form-control excel-column-input" 
-                placeholder="Masukkan nama kolom Excel" required>
+                placeholder="Enter Excel column name" required>
         </td>
         <td class="text-center align-middle">
             <i class="fas fa-long-arrow-alt-right text-muted"></i>
@@ -181,7 +181,7 @@ function removeMappingRow(button) {
     if (rows.length > 1) {
         button.closest('tr').remove();
     } else {
-        alert('Minimal harus ada satu mapping!');
+        alert('At least one mapping row is required.');
     }
 }
 
@@ -220,7 +220,7 @@ document.getElementById('mappingForm').addEventListener('submit', function(e) {
     });
     
     if (Object.keys(columnMapping).length === 0) {
-        alert('Minimal isi satu mapping kolom!');
+        alert('Please map at least one column.');
         return false;
     }
     

@@ -1,18 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'Detail Mapping')
+@section('title', 'Mapping Details')
 
 @section('content')
 <div class="card shadow-sm">
     <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
         <div>
             <h2 class="mb-0">
-                <i class="fas fa-project-diagram text-primary me-2"></i>Detail Data Mapping
+                <i class="fas fa-project-diagram text-primary me-2"></i>Mapping Details
             </h2>
             <p class="text-muted mb-0 mt-2">{{ $mapping->mapping_index }}</p>
         </div>
-        <a href="{{ route('mapping.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Kembali
+        <a href="{{ route('mapping.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back
         </a>
     </div>
 
@@ -20,7 +20,7 @@
         <!-- Info Format -->
         <div class="alert alert-info" role="alert">
             <h5 class="alert-heading">
-                <i class="fas fa-info-circle me-2"></i>Informasi Format
+                <i class="fas fa-info-circle me-2"></i>Format Information
             </h5>
             <div class="row g-3">
                 <div class="col-md-6">
@@ -36,7 +36,7 @@
                     <code class="bg-white px-2 py-1 rounded">{{ $mapping->excelFormat->target_table }}</code>
                 </div>
                 <div class="col-md-6">
-                    <strong>Dibuat:</strong><br>
+                    <strong>Created:</strong><br>
                     {{ $mapping->created_at->format('d M Y H:i') }}
                 </div>
             </div>
@@ -103,7 +103,7 @@
                                 <code class="bg-light px-2 py-1 rounded">{{ $field }}</code>
                             </td>
                             <td>
-                                <span class="badge bg-secondary">
+                                <span class="badge badge-soft-neutral">
                                     {{ $rule['type'] ?? 'N/A' }}
                                 </span>
                             </td>

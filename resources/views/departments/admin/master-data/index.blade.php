@@ -9,7 +9,7 @@
             <h2 class="mb-0">
                 <i class="fas fa-database text-primary me-2"></i>Master Data (All Departments)
             </h2>
-            <p class="text-muted mb-0 mt-2">View dan export semua data dari seluruh department</p>
+            <p class="text-muted mb-0 mt-2">Review and export data submitted by every department.</p>
         </div>
         <div>
             <a href="{{ route('admin.master-data.duplicates') }}" class="btn btn-warning me-2">
@@ -64,7 +64,7 @@
         @if($masterData->isEmpty())
         <div class="text-center py-5">
             <i class="fas fa-database text-muted" style="font-size: 4rem;"></i>
-            <p class="text-muted mt-3 mb-0">Tidak ada data</p>
+            <p class="text-muted mt-3 mb-0">No data available.</p>
         </div>
         @else
         <div class="table-responsive">
@@ -84,13 +84,13 @@
                     <tr>
                         <td>{{ $record->id }}</td>
                         <td>
-                            <span class="badge bg-info">{{ $record->department->name ?? 'N/A' }}</span>
+                            <span class="badge badge-soft-info">{{ $record->department->name ?? 'N/A' }}</span>
                         </td>
                         <td><code>{{ $record->source_table }}</code></td>
                         <td>{{ $record->uploadHistory->uploader->name ?? 'N/A' }}</td>
                         <td>{{ $record->created_at->format('Y-m-d H:i') }}</td>
                         <td>
-                            <button class="btn btn-sm btn-outline-secondary" type="button" 
+                            <button class="btn btn-sm btn-outline-info" type="button" 
                                 data-bs-toggle="collapse" data-bs-target="#data-{{ $record->id }}">
                                 <i class="fas fa-eye"></i>
                             </button>

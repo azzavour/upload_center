@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="mb-3">
-    <a href="{{ route('department-uploads.index') }}" class="btn btn-secondary">
+    <a href="{{ route('department-uploads.index') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left me-2"></i>Back to Department Uploads
     </a>
 </div>
@@ -14,7 +14,7 @@
     <h5 class="alert-heading">
         <i class="fas fa-building me-2"></i>{{ $user->department->name }} Statistics
     </h5>
-    <p class="mb-0">Statistik upload untuk seluruh department</p>
+    <p class="mb-0">Upload statistics for the entire department.</p>
 </div>
 
 <!-- Statistics Overview -->
@@ -83,7 +83,7 @@
                     <tr>
                         <td>{{ \Carbon\Carbon::parse($trend->month . '-01')->format('F Y') }}</td>
                         <td class="text-center">
-                            <span class="badge bg-primary">{{ $trend->total_uploads }}</span>
+                            <span class="badge badge-soft-primary">{{ $trend->total_uploads }}</span>
                         </td>
                         <td class="text-center text-success">{{ number_format($trend->total_success) }}</td>
                         <td class="text-center text-danger">{{ number_format($trend->total_failed) }}</td>
@@ -124,7 +124,7 @@
                             {{ $format->format_name }}
                         </td>
                         <td class="text-center">
-                            <span class="badge bg-info">{{ $format->total_uploads }}</span>
+                            <span class="badge badge-soft-info">{{ $format->total_uploads }}</span>
                         </td>
                         <td class="text-center">{{ number_format($format->total_rows) }}</td>
                     </tr>
@@ -136,7 +136,7 @@
     </div>
 </div>
 
-<!-- ✅ BARU: Upload by User -->
+<!-- Highlight: Uploads grouped by user -->
 <div class="card shadow-sm">
     <div class="card-header bg-white">
         <h5 class="mb-0">
@@ -168,7 +168,7 @@
                         </td>
                         <td class="text-muted small">{{ $userStat->email }}</td>
                         <td class="text-center">
-                            <span class="badge bg-primary">{{ $userStat->total_uploads }}</span>
+                            <span class="badge badge-soft-primary">{{ $userStat->total_uploads }}</span>
                         </td>
                             <td class="text-center">{{ number_format($userStat->total_rows) }}</td>
                         </tr>

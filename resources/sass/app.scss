@@ -7,26 +7,181 @@
 // Bootstrap
 @import 'bootstrap/scss/bootstrap';
 
+// Brand palette
+$brand-primary: #1d4ed8;
+$brand-primary-dark: #1e40af;
+$brand-secondary: #475569;
+$brand-success: #16a34a;
+$brand-warning: #f59e0b;
+$brand-danger: #dc2626;
+$brand-info: #0ea5e9;
+$brand-neutral: #94a3b8;
+$brand-surface: #f8fafc;
+
+body {
+    background-color: $brand-surface;
+    color: #0f172a;
+    font-family: 'Nunito', sans-serif;
+}
+
+.navbar {
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.04);
+
+    .navbar-brand {
+        font-weight: 700;
+    }
+
+    .navbar-nav .nav-link {
+        color: $brand-secondary;
+        font-weight: 600;
+        transition: color 0.2s ease;
+
+        &.active,
+        &:hover,
+        &:focus {
+            color: $brand-primary;
+        }
+    }
+}
+
+.table {
+    thead {
+        background-color: #eef2ff;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+    }
+
+    tbody tr {
+        transition: background-color 0.15s ease;
+
+        &:hover {
+            background-color: rgba(99, 102, 241, 0.08);
+        }
+    }
+}
+
+.badge {
+    font-weight: 600;
+    letter-spacing: 0.01em;
+
+    &.bg-success { background-color: lighten($brand-success, 8%); }
+    &.bg-warning {
+        background-color: lighten($brand-warning, 5%);
+        color: #78350f;
+    }
+    &.bg-danger { background-color: lighten($brand-danger, 5%); }
+    &.bg-info { background-color: lighten($brand-info, 12%); }
+}
+
+.badge-soft {
+    &-primary { background-color: rgba($brand-primary, 0.12); color: $brand-primary; }
+    &-success { background-color: rgba($brand-success, 0.12); color: $brand-success; }
+    &-warning { background-color: rgba($brand-warning, 0.2); color: darken($brand-warning, 6%); }
+    &-danger { background-color: rgba($brand-danger, 0.15); color: $brand-danger; }
+    &-info { background-color: rgba($brand-info, 0.18); color: $brand-info; }
+    &-neutral { background-color: rgba($brand-neutral, 0.3); color: $brand-secondary; }
+}
+
+.text-neutral {
+    color: $brand-neutral !important;
+}
+
+@mixin button-solid($bg, $hover) {
+    background-color: $bg;
+    border-color: $bg;
+    color: #fff;
+    box-shadow: 0 10px 25px rgba($bg, 0.2);
+
+    &:hover,
+    &:focus,
+    &:active {
+        background-color: $hover;
+        border-color: $hover;
+        color: #fff;
+    }
+
+    &:focus-visible {
+        box-shadow: 0 0 0 0.2rem rgba($bg, 0.35);
+    }
+
+    &:disabled {
+        background-color: lighten($bg, 12%);
+        border-color: lighten($bg, 12%);
+        color: rgba(255, 255, 255, 0.85);
+        box-shadow: none;
+    }
+}
+
+@mixin button-outline($color) {
+    color: $color;
+    border-color: $color;
+
+    &:hover,
+    &:focus,
+    &:active {
+        background-color: $color;
+        color: #fff;
+        border-color: $color;
+    }
+
+    &:focus-visible {
+        box-shadow: 0 0 0 0.2rem rgba($color, 0.25);
+    }
+
+    &:disabled {
+        color: lighten($color, 20%);
+        border-color: lighten($color, 20%);
+    }
+}
+
+.btn-primary { @include button-solid($brand-primary, $brand-primary-dark); }
+.btn-success { @include button-solid($brand-success, darken($brand-success, 8%)); }
+.btn-danger { @include button-solid($brand-danger, darken($brand-danger, 8%)); }
+.btn-warning {
+    color: #78350f;
+    background-color: $brand-warning;
+    border-color: $brand-warning;
+
+    &:hover,
+    &:focus,
+    &:active {
+        background-color: darken($brand-warning, 7%);
+        border-color: darken($brand-warning, 7%);
+        color: #fff;
+    }
+}
+
+.btn-secondary { @include button-solid($brand-secondary, darken($brand-secondary, 6%)); }
+.btn-outline-primary { @include button-outline($brand-primary); }
+.btn-outline-success { @include button-outline($brand-success); }
+.btn-outline-danger { @include button-outline($brand-danger); }
+.btn-outline-secondary { @include button-outline($brand-secondary); }
+.btn-outline-info { @include button-outline($brand-info); }
+
+.btn:focus,
+.btn:active {
+    box-shadow: 0 0 0 0.2rem rgba(30, 64, 175, 0.25);
+}
+
+.card {
+    transition: box-shadow 0.3s ease;
+    
+    &:hover {
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+    }
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
 // Custom Auth Styles - Posisikan form login/register di tengah
 main.auth-center {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: calc(100vh - 150px);
-}
-
-// Custom Styles untuk aplikasi
-.navbar-brand {
-    font-weight: 700;
-}
-
-// Card hover effects
-.card {
-    transition: all 0.3s ease;
-    
-    &:hover {
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    }
 }
 
 // Alert animations
@@ -52,4 +207,12 @@ main.auth-center {
 
 .rounded-lg {
     border-radius: 0.5rem;
+}
+
+.dropzone {
+    border: 2px dashed rgba($brand-secondary, 0.35);
+    border-radius: 1rem;
+    padding: 3rem;
+    text-align: center;
+    background-color: #fff;
 }

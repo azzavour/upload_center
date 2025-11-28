@@ -9,10 +9,10 @@
             <h2 class="mb-0">
                 <i class="fas fa-building text-primary me-2"></i>Manage Departments
             </h2>
-            <p class="text-muted mb-0 mt-2">Kelola department/divisi perusahaan</p>
+            <p class="text-muted mb-0 mt-2">Administer company departments and divisions.</p>
         </div>
         <a href="{{ route('admin.departments.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Tambah Department
+            <i class="fas fa-plus me-2"></i>Add Department
         </a>
     </div>
 
@@ -20,7 +20,7 @@
         @if($departments->isEmpty())
         <div class="text-center py-5">
             <i class="fas fa-building text-muted" style="font-size: 4rem;"></i>
-            <p class="text-muted mt-3 mb-0">Belum ada department terdaftar</p>
+            <p class="text-muted mt-3 mb-0">No departments have been registered yet.</p>
         </div>
         @else
         <div class="table-responsive">
@@ -44,7 +44,7 @@
                         <td><strong>{{ $dept->name }}</strong></td>
                         <td>{{ Str::limit($dept->description, 50) }}</td>
                         <td>
-                            <span class="badge bg-info">
+                            <span class="badge badge-soft-info">
                                 {{ $dept->users->count() }} users
                             </span>
                         </td>
@@ -52,7 +52,7 @@
                             @if($dept->is_active)
                                 <span class="badge bg-success">Active</span>
                             @else
-                                <span class="badge bg-secondary">Inactive</span>
+                                <span class="badge badge-soft-neutral">Inactive</span>
                             @endif
                         </td>
                         <td>

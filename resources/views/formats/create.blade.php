@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Tambah Format Baru')
+@section('title', 'Add New Format')
 
 @section('content')
 <div class="card shadow-sm">
     <div class="card-header bg-white border-bottom">
         <h2 class="mb-0">
-            <i class="fas fa-plus-circle text-primary me-2"></i>Tambah Format Excel Baru
+            <i class="fas fa-plus-circle text-primary me-2"></i>Add a New Excel Format
         </h2>
-        <p class="text-muted mb-0 mt-2">Daftarkan format Excel baru untuk sistem upload</p>
+        <p class="text-muted mb-0 mt-2">Register a new Excel format for the upload workflow.</p>
     </div>
 
     <div class="card-body">
@@ -18,10 +18,10 @@
             <!-- Format Name -->
             <div class="mb-4">
                 <label class="form-label fw-bold">
-                    Nama Format <span class="text-danger">*</span>
+                    Format Name <span class="text-danger">*</span>
                 </label>
                 <input type="text" name="format_name" required class="form-control"
-                    placeholder="Contoh: Format Data Produk 2025">
+                    placeholder="Example: Product Data Format 2025">
                 @error('format_name')
                 <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
@@ -29,56 +29,56 @@
 
             <!-- Description -->
             <div class="mb-4">
-                <label class="form-label fw-bold">Deskripsi</label>
+                <label class="form-label fw-bold">Description</label>
                 <textarea name="description" rows="3" class="form-control"
-                    placeholder="Deskripsi singkat tentang format ini"></textarea>
+                    placeholder="Brief description of this format"></textarea>
             </div>
 
             <!-- Expected Columns -->
             <div class="mb-4">
                 <label class="form-label fw-bold">
-                    Kolom yang Diharapkan <span class="text-danger">*</span>
+                    Expected Columns <span class="text-danger">*</span>
                 </label>
                 <div id="columns-container" class="mb-3">
-                    <!-- Kolom pertama (wajib ada minimal 1) -->
+                    <!-- Initial column (at least one required) -->
                     <div class="input-group mb-2 column-row">
                         <input type="text" name="expected_columns[]" required class="form-control" 
-                               placeholder="Contoh: Kode Produk, Nama, Tanggal, dll">
+                               placeholder="Example: Product Code, Name, Date, etc.">
                         <button type="button" onclick="removeColumn(this)" class="btn btn-danger">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
                 <button type="button" onclick="addColumn()" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-plus me-2"></i>Tambah Kolom
+                    <i class="fas fa-plus me-2"></i>Add Column
                 </button>
                 <div class="form-text mt-2">
                     <i class="fas fa-info-circle me-1"></i>
-                    Tambahkan kolom sesuai dengan header di file Excel Anda. Minimal 1 kolom.
+                    Add columns exactly as they appear in your Excel headers (minimum one column).
                 </div>
             </div>
 
             <!-- Target Table -->
             <div class="mb-4">
                 <label class="form-label fw-bold">
-                    <i class="fas fa-table me-1"></i>Nama Tabel Baru <span class="text-danger">*</span>
+                    <i class="fas fa-table me-1"></i>New Table Name <span class="text-danger">*</span>
                 </label>
                 <input type="text" name="target_table" id="target_table" required class="form-control" 
-                    placeholder="Masukkan nama tabel (contoh: produk, karyawan, penjualan)"
+                    placeholder="Enter table name (example: products, employees, sales)"
                     style="text-transform: lowercase;">
                 @error('target_table')
                 <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
                 <div class="form-text">
                     <i class="fas fa-info-circle me-1"></i>
-                    Nama tabel akan otomatis diubah ke huruf kecil. Hanya boleh huruf, angka, dan underscore (_).
+                    Table names are forced to lowercase and may only contain letters, numbers, and underscores (_).
                 </div>
                 <div class="alert alert-success mt-2 mb-0">
                     <i class="fas fa-magic me-1"></i>
-                    <strong>Tabel akan dibuat otomatis!</strong><br>
+                    <strong>The table will be created automatically.</strong><br>
                     <small>
-                        Sistem akan membuat tabel baru di database dengan nama: 
-                        <code class="bg-white px-2 py-1 rounded">dept_[kode_department_anda]_[nama_tabel]</code>
+                        The system creates a new database table using the convention: 
+                        <code class="bg-white px-2 py-1 rounded">dept_[your_department_code]_[table_name]</code>
                     </small>
                 </div>
             </div>
@@ -86,13 +86,13 @@
             <!-- Info Box -->
             <div class="alert alert-info" role="alert">
                 <h6 class="alert-heading">
-                    <i class="fas fa-lightbulb me-2"></i>Panduan Pengisian
+                    <i class="fas fa-lightbulb me-2"></i>Completion Guidance
                 </h6>
                 <ul class="mb-0 small">
-                    <li><strong>Nama Format:</strong> Berikan nama yang deskriptif, contoh: "Format Laporan Penjualan Q1 2025"</li>
-                    <li><strong>Kolom:</strong> Isi sesuai header di Excel Anda, contoh: Tanggal, Nama Customer, Total Pembelian</li>
-                    <li><strong>Target Table:</strong> Nama tabel untuk menyimpan data, contoh: penjualan, karyawan, produk</li>
-                    <li><strong>Otomatis:</strong> Sistem akan membuat tabel dengan prefix department Anda</li>
+                    <li><strong>Format name:</strong> Provide a descriptive title, for example “Sales Report Format Q1 2025”.</li>
+                    <li><strong>Columns:</strong> List them exactly as they appear in Excel, e.g., Date, Customer Name, Total Purchase.</li>
+                    <li><strong>Target table:</strong> Define the destination table such as sales, employees, or products.</li>
+                    <li><strong>Automation:</strong> The system prefixes each table with your department code.</li>
                 </ul>
             </div>
 
@@ -100,15 +100,15 @@
             <div class="card bg-light mb-4">
                 <div class="card-body">
                     <h6 class="card-title text-primary mb-3">
-                        <i class="fas fa-graduation-cap me-2"></i>Contoh Format
+                        <i class="fas fa-graduation-cap me-2"></i>Format Examples
                     </h6>
                     
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="p-3 bg-white rounded border">
-                                <strong class="d-block mb-2">Format Data Produk</strong>
+                                <strong class="d-block mb-2">Product Data Format</strong>
                                 <div class="small text-muted">
-                                    Kolom: Kode Produk, Nama Produk, Kategori, Harga, Stok<br>
+                                    Columns: Product Code, Product Name, Category, Price, Stock<br>
                                     Target: <code>produk</code>
                                 </div>
                             </div>
@@ -116,9 +116,9 @@
                         
                         <div class="col-md-6">
                             <div class="p-3 bg-white rounded border">
-                                <strong class="d-block mb-2">Format Data Karyawan</strong>
+                                <strong class="d-block mb-2">Employee Data Format</strong>
                                 <div class="small text-muted">
-                                    Kolom: NIK, Nama, Jabatan, Departemen, Gaji<br>
+                                    Columns: Employee ID, Name, Position, Department, Salary<br>
                                     Target: <code>karyawan</code>
                                 </div>
                             </div>
@@ -126,9 +126,9 @@
                         
                         <div class="col-md-6">
                             <div class="p-3 bg-white rounded border">
-                                <strong class="d-block mb-2">Format Laporan Penjualan</strong>
+                                <strong class="d-block mb-2">Sales Report Format</strong>
                                 <div class="small text-muted">
-                                    Kolom: Tanggal, No Invoice, Customer, Total, Status<br>
+                                    Columns: Date, Invoice No, Customer, Total, Status<br>
                                     Target: <code>penjualan</code>
                                 </div>
                             </div>
@@ -136,9 +136,9 @@
                         
                         <div class="col-md-6">
                             <div class="p-3 bg-white rounded border">
-                                <strong class="d-block mb-2">Format Inventory</strong>
+                                <strong class="d-block mb-2">Inventory Format</strong>
                                 <div class="small text-muted">
-                                    Kolom: SKU, Nama Barang, Lokasi, Qty, Satuan<br>
+                                    Columns: SKU, Item Name, Location, Quantity, Unit<br>
                                     Target: <code>inventory</code>
                                 </div>
                             </div>
@@ -149,11 +149,11 @@
 
             <!-- Action Buttons -->
             <div class="d-flex justify-content-between">
-                <a href="{{ route('formats.index') }}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left me-2"></i>Kembali
+                <a href="{{ route('formats.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back
                 </a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Simpan Format
+                    <i class="fas fa-save me-2"></i>Save Format
                 </button>
             </div>
         </form>
@@ -169,7 +169,7 @@ function addColumn() {
     div.className = 'input-group mb-2 column-row';
     div.innerHTML = `
         <input type="text" name="expected_columns[]" required class="form-control"
-            placeholder="Nama kolom (contoh: Tanggal, Jumlah, Keterangan)">
+            placeholder="Column name (example: Date, Amount, Notes)">
         <button type="button" onclick="removeColumn(this)" class="btn btn-danger">
             <i class="fas fa-times"></i>
         </button>
@@ -182,7 +182,7 @@ function removeColumn(button) {
     if (rows.length > 1) {
         button.closest('.column-row').remove();
     } else {
-        alert('Minimal harus ada satu kolom!');
+        alert('At least one column is required.');
     }
 }
 

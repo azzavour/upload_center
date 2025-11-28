@@ -8,14 +8,14 @@
         <h2 class="mb-0">
             <i class="fas fa-cloud-upload-alt text-primary me-2"></i>All Uploads (Admin View)
         </h2>
-        <p class="text-muted mb-0 mt-2">Lihat semua upload dari semua department</p>
+        <p class="text-muted mb-0 mt-2">Review every upload submitted across all departments.</p>
     </div>
 
     <div class="card-body">
         @if($histories->isEmpty())
         <div class="text-center py-5">
             <i class="fas fa-inbox text-muted" style="font-size: 4rem;"></i>
-            <p class="text-muted mt-3 mb-0">Belum ada upload</p>
+            <p class="text-muted mt-3 mb-0">No uploads have been recorded yet.</p>
         </div>
         @else
         <div class="table-responsive">
@@ -38,7 +38,7 @@
                     <tr>
                         <td>{{ $loop->iteration }}</td>
                         <td>
-                            <span class="badge bg-primary">
+                            <span class="badge badge-soft-primary">
                                 {{ $history->department->name ?? 'N/A' }}
                             </span>
                         </td>
@@ -51,7 +51,7 @@
                             {{ $history->uploader->name ?? 'N/A' }}
                         </td>
                         <td>
-                            <span class="badge bg-info">
+                            <span class="badge badge-soft-info">
                                 {{ $history->excelFormat->format_name }}
                             </span>
                         </td>
@@ -69,10 +69,10 @@
                                     <i class="fas fa-times-circle me-1"></i>Failed
                                 </span>
                             @else
-                                <span class="badge bg-secondary">
+                                <span class="badge badge-soft-neutral">
                                     <i class="fas fa-clock me-1"></i>Pending
                                 </span>
-                            @endif
+                           @endif
                         </td>
                         <td>
                             <div class="small">

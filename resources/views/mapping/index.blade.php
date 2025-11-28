@@ -6,9 +6,9 @@
 <div class="card shadow-sm">
     <div class="card-header bg-white border-bottom">
         <h2 class="mb-0">
-            <i class="fas fa-project-diagram text-primary me-2"></i>Data Mapping Terdaftar
+            <i class="fas fa-project-diagram text-primary me-2"></i>Registered Data Mappings
         </h2>
-        <p class="text-muted mb-0 mt-2">Lihat semua konfigurasi mapping yang telah dibuat</p>
+        <p class="text-muted mb-0 mt-2">Review every mapping configuration that has been generated.</p>
     </div>
 
     <div class="card-body">
@@ -31,8 +31,8 @@
         @if($mappings->isEmpty())
         <div class="text-center py-5">
             <i class="fas fa-project-diagram text-muted" style="font-size: 4rem;"></i>
-            <p class="text-muted mt-3 mb-0">Belum ada mapping terdaftar</p>
-            <p class="text-muted small">Mapping akan otomatis dibuat saat Anda upload file dengan format baru</p>
+            <p class="text-muted mt-3 mb-0">No mappings have been registered yet.</p>
+            <p class="text-muted small">A mapping is created automatically whenever you upload a new file structure.</p>
         </div>
         @else
         <div class="row">
@@ -44,11 +44,11 @@
                             <div class="flex-grow-1">
                                 <!-- Mapping Index & Time -->
                                 <div class="mb-3">
-                                    <span class="badge bg-primary fs-6 me-2">
+                                    <span class="badge badge-soft-primary fs-6 me-2">
                                         <i class="fas fa-fingerprint me-1"></i>
                                         {{ $mapping->mapping_index }}
                                     </span>
-                                    <small class="text-muted">dibuat {{ $mapping->created_at->diffForHumans() }}</small>
+                                    <small class="text-muted">created {{ $mapping->created_at->diffForHumans() }}</small>
                                 </div>
 
                                 <!-- Format Info -->
@@ -93,7 +93,7 @@
                                     </p>
                                     <div>
                                         @foreach($mapping->transformation_rules as $field => $rule)
-                                        <span class="badge bg-secondary me-1 mb-1">
+                                        <span class="badge badge-soft-neutral me-1 mb-1">
                                             {{ $field }}: {{ $rule['type'] ?? 'N/A' }}
                                         </span>
                                         @endforeach
@@ -106,14 +106,14 @@
                             <div class="ms-3">
                                 <div class="d-flex flex-column gap-2">
                                     <a href="{{ route('mapping.show', $mapping->id) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye me-1"></i>Detail
+                                        <i class="fas fa-eye me-1"></i>Details
                                     </a>
                                     <form action="{{ route('mapping.destroy', $mapping->id) }}" method="POST" 
-                                        onsubmit="return confirm('Yakin ingin menghapus mapping {{ $mapping->mapping_index }}? Tindakan ini tidak dapat dibatalkan!');">
+                                        onsubmit="return confirm('Are you sure you want to delete mapping {{ $mapping->mapping_index }}? This action cannot be undone.');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-danger w-100">
-                                            <i class="fas fa-trash me-1"></i>Hapus
+                                            <i class="fas fa-trash me-1"></i>Delete
                                         </button>
                                     </form>
                                 </div>

@@ -151,7 +151,14 @@ class UploadService
         ]);
 
         $history->loadMissing('excelFormat');
-        $this->masterDataService->syncToMasterData($history);
+
+        if (config('upload.sync_master_data', true)) {
+            $this->masterDataService->syncToMasterData($history);
+        } else {
+            Log::info('Master data sync skipped (disabled via config)', [
+                'history_id' => $history->id,
+            ]);
+        }
 
         Log::info('Upload completed successfully', [
             'history_id' => $history->id,

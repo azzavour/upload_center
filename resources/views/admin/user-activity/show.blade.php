@@ -5,7 +5,7 @@
 @section('content')
 <!-- Back Button -->
 <div class="mb-3">
-    <a href="{{ route('admin.user-activity.index') }}" class="btn btn-secondary">
+    <a href="{{ route('admin.user-activity.index') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left me-2"></i>Back to User List
     </a>
     <a href="{{ route('admin.user-activity.export', $user->id) }}" class="btn btn-success">
@@ -27,16 +27,16 @@
                 <div class="mb-2">
                     <i class="fas fa-building me-2"></i>
                     @if($user->department)
-                        <span class="badge bg-info">{{ $user->department->name }} ({{ $user->department->code }})</span>
+                        <span class="badge badge-soft-info">{{ $user->department->name }} ({{ $user->department->code }})</span>
                     @else
-                        <span class="badge bg-secondary">No Department</span>
+                        <span class="badge badge-soft-neutral">No Department</span>
                     @endif
                 </div>
                 <div>
                     @if($user->role === 'admin')
-                        <span class="badge bg-danger"><i class="fas fa-crown me-1"></i>Admin</span>
+                        <span class="badge badge-soft-danger"><i class="fas fa-crown me-1"></i>Admin</span>
                     @else
-                        <span class="badge bg-primary">User</span>
+                        <span class="badge badge-soft-primary">User</span>
                     @endif
                 </div>
             </div>
@@ -162,22 +162,26 @@
                             {{ Str::limit($upload->original_filename, 25) }}
                         </td>
                         <td>
-                            <span class="badge bg-info small">{{ $upload->excelFormat->format_name }}</span>
+                            <span class="badge badge-soft-info small">{{ $upload->excelFormat->format_name }}</span>
                         </td>
                         <td>
                             @if($upload->upload_mode === 'replace')
-                                <span class="badge bg-warning small">Replace</span>
+                                <span class="badge badge-soft-warning small">Replace</span>
                             @else
-                                <span class="badge bg-success small">Append</span>
+                                <span class="badge badge-soft-success small">Append</span>
                             @endif
                         </td>
                         <td>
                             @if($upload->status === 'completed')
-                                <span class="badge bg-success small">✓</span>
+                                <span class="badge bg-success small">
+                                    <i class="fas fa-check me-1"></i>Completed
+                                </span>
                             @elseif($upload->status === 'failed')
-                                <span class="badge bg-danger small">✗</span>
+                                <span class="badge bg-danger small">
+                                    <i class="fas fa-times me-1"></i>Failed
+                                </span>
                             @else
-                                <span class="badge bg-secondary small">{{ $upload->status }}</span>
+                                <span class="badge badge-soft-neutral small">{{ ucfirst($upload->status) }}</span>
                             @endif
                         </td>
                         <td>{{ $upload->total_rows }}</td>

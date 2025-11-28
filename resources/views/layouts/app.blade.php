@@ -49,12 +49,12 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('history.*') ? 'active' : '' }}" href="{{ route('history.index') }}">
-                                <i class="fas fa-history"></i> Riwayat
+                                <i class="fas fa-history"></i> History
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('formats.*') ? 'active' : '' }}" href="{{ route('formats.index') }}">
-                                <i class="fas fa-file-excel"></i> Format
+                                <i class="fas fa-file-excel"></i> Formats
                             </a>
                         </li>
 
@@ -120,7 +120,7 @@
                                 <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-user-circle"></i> {{ Auth::user()->name }}
                                     @if(Auth::user()->department)
-                                        <span class="badge bg-primary ms-1">{{ Auth::user()->department->code }}</span>
+                                        <span class="badge badge-soft-primary ms-1">{{ Auth::user()->department->code }}</span>
                                     @endif
                                 </a>
 

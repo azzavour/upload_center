@@ -52,7 +52,7 @@
             </h2>
             <p class="text-muted mb-0 mt-2">
                 <i class="fas fa-info-circle me-1"></i>
-                Semua upload dari department: <strong>{{ $user->department->name }}</strong>
+                Showing every upload submitted by the <strong>{{ $user->department->name }}</strong> department.
             </p>
         </div>
         <div>
@@ -130,7 +130,7 @@
                     <button type="submit" class="btn btn-primary btn-sm">
                         <i class="fas fa-filter me-1"></i>Apply Filters
                     </button>
-                    <a href="{{ route('department-uploads.index') }}" class="btn btn-secondary btn-sm">
+                    <a href="{{ route('department-uploads.index') }}" class="btn btn-outline-secondary btn-sm">
                         <i class="fas fa-redo me-1"></i>Reset
                     </a>
                 </div>
@@ -152,7 +152,7 @@
         @if($uploads->isEmpty())
         <div class="text-center py-5">
             <i class="fas fa-inbox text-muted" style="font-size: 4rem;"></i>
-            <p class="text-muted mt-3 mb-0">Belum ada upload di department ini</p>
+            <p class="text-muted mt-3 mb-0">No uploads have been submitted for this department.</p>
         </div>
         @else
         <div class="table-responsive">
@@ -195,15 +195,15 @@
                             <span class="small">{{ Str::limit($upload->original_filename, 25) }}</span>
                         </td>
                         <td>
-                            <span class="badge bg-info text-white small">
+                            <span class="badge badge-soft-info small">
                                 {{ $upload->excelFormat->format_name }}
                             </span>
                         </td>
                         <td>
                             @if($upload->upload_mode === 'replace')
-                                <span class="badge bg-warning small">Replace</span>
+                                <span class="badge badge-soft-warning small">Replace</span>
                             @else
-                                <span class="badge bg-success small">Append</span>
+                                <span class="badge badge-soft-success small">Append</span>
                             @endif
                         </td>
                         <td>
@@ -216,14 +216,18 @@
                                     <i class="fas fa-times-circle me-1"></i>Failed
                                 </span>
                             @else
-                                <span class="badge bg-secondary small">{{ ucfirst($upload->status) }}</span>
+                                <span class="badge badge-soft-neutral small">{{ ucfirst($upload->status) }}</span>
                             @endif
                         </td>
                         <td>
                             <div class="small">
-                                <div class="text-success">✓ {{ $upload->success_rows }}</div>
+                                <div class="text-success">
+                                    <i class="fas fa-check me-1"></i>{{ $upload->success_rows }}
+                                </div>
                                 @if($upload->failed_rows > 0)
-                                <div class="text-danger">✗ {{ $upload->failed_rows }}</div>
+                                <div class="text-danger">
+                                    <i class="fas fa-times me-1"></i>{{ $upload->failed_rows }}
+                                </div>
                                 @endif
                             </div>
                         </td>
@@ -274,14 +278,14 @@
         <i class="fas fa-info-circle text-primary me-3 mt-1" style="font-size: 1.5rem;"></i>
         <div>
             <h6 class="alert-heading mb-2">
-                <strong>Tentang Department Uploads</strong>
+                <strong>About Department Uploads</strong>
             </h6>
             <ul class="mb-0 small">
-                <li>Anda dapat melihat <strong>semua upload dari user di department Anda</strong></li>
-                <li>Gunakan filter untuk mencari upload tertentu berdasarkan user, format, atau tanggal</li>
-                <li>Klik <i class="fas fa-eye"></i> untuk melihat detail lengkap upload</li>
-                <li>Klik <i class="fas fa-download"></i> untuk mendownload file asli yang diupload</li>
-                <li><strong>Read-only:</strong> Anda hanya bisa melihat, tidak bisa menghapus upload user lain</li>
+                <li>Review <strong>every upload submitted by users in your department.</strong></li>
+                <li>Use the filters to find uploads by user, format, or date range.</li>
+                <li>Select <i class="fas fa-eye"></i> to view the detailed upload report.</li>
+                <li>Select <i class="fas fa-download"></i> to download the original file.</li>
+                <li><strong>Read-only:</strong> you can view entries but cannot delete uploads submitted by others.</li>
             </ul>
         </div>
     </div>

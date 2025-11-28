@@ -49,7 +49,7 @@
         <h2 class="mb-0">
             <i class="fas fa-chart-line text-primary me-2"></i>User Activity Monitoring
         </h2>
-        <p class="text-muted mb-0 mt-2">Monitor aktivitas upload semua user</p>
+        <p class="text-muted mb-0 mt-2">Monitor every user's upload activity.</p>
     </div>
 
     <div class="card-body">
@@ -132,27 +132,27 @@
                         </td>
                         <td>
                             @if($user->department)
-                                <span class="badge bg-info">{{ $user->department->code }}</span>
+                                <span class="badge badge-soft-info">{{ $user->department->code }}</span>
                             @else
-                                <span class="badge bg-secondary">N/A</span>
+                                <span class="badge badge-soft-neutral">N/A</span>
                             @endif
                         </td>
                         <td>
                             @if($user->role === 'admin')
-                                <span class="badge bg-danger">
+                                <span class="badge badge-soft-danger">
                                     <i class="fas fa-crown me-1"></i>Admin
                                 </span>
                             @else
-                                <span class="badge bg-primary">User</span>
+                                <span class="badge badge-soft-primary">User</span>
                             @endif
                         </td>
                         <td class="text-center">
-                            <span class="badge bg-light text-dark fs-6">
+                            <span class="badge badge-soft-info fs-6">
                                 {{ $user->total_uploads ?? 0 }}
                             </span>
                         </td>
                         <td class="text-center">
-                            <span class="badge bg-light text-dark fs-6">
+                            <span class="badge badge-soft-info fs-6">
                                 {{ number_format($user->total_rows_uploaded ?? 0) }}
                             </span>
                         </td>

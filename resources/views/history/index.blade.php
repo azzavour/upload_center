@@ -8,7 +8,7 @@
         <h2 class="mb-0">
             <i class="fas fa-history text-primary me-2"></i>Upload History
         </h2>
-        <p class="text-muted mb-0 mt-2">Daftar riwayat upload file Excel</p>
+        <p class="text-muted mb-0 mt-2">Comprehensive list of prior Excel uploads</p>
     </div>
 
     <div class="card-body">
@@ -22,10 +22,10 @@
         @if($histories->isEmpty())
         <div class="text-center py-5">
             <i class="fas fa-inbox text-muted" style="font-size: 4rem;"></i>
-            <p class="text-muted mt-3 mb-0">Belum ada riwayat upload</p>
-            <p class="text-muted small">Upload file pertama Anda untuk memulai</p>
+            <p class="text-muted mt-3 mb-0">There is no upload history yet</p>
+            <p class="text-muted small">Upload your first file to get started</p>
             <a href="{{ route('upload.index') }}" class="btn btn-primary mt-3">
-                <i class="fas fa-upload me-2"></i>Upload File Pertama
+                <i class="fas fa-upload me-2"></i>Upload First File
             </a>
         </div>
         @else
@@ -56,7 +56,7 @@
                             {{ $history->original_filename }}
                         </td>
                         <td>
-                            <span class="badge bg-info">
+                            <span class="badge badge-soft-info">
                                 {{ $history->excelFormat->format_name }}
                             </span>
                         </td>
@@ -68,11 +68,11 @@
                         </td>
                         <td>
                             @if($history->upload_mode === 'replace')
-                                <span class="badge bg-warning">
+                                <span class="badge badge-soft-warning">
                                     <i class="fas fa-sync-alt me-1"></i>Replace
                                 </span>
                             @else
-                                <span class="badge bg-success">
+                                <span class="badge badge-soft-success">
                                     <i class="fas fa-plus-circle me-1"></i>Append
                                 </span>
                             @endif
@@ -91,7 +91,7 @@
                                     <i class="fas fa-times-circle me-1"></i>Failed
                                 </span>
                             @else
-                                <span class="badge bg-secondary">
+                                <span class="badge badge-soft-neutral">
                                     <i class="fas fa-clock me-1"></i>Pending
                                 </span>
                             @endif
@@ -112,11 +112,11 @@
                             <small>{{ $history->uploaded_at->timezone($displayTimezone)->format('d M Y H:i') }}</small>
                         </td>
                         <td>
-                            <a href="{{ route('history.show', $history->id) }}" class="btn btn-sm btn-outline-primary">
+                            <a href="{{ route('history.show', $history->id) }}" class="btn btn-sm btn-outline-info">
                                 <i class="fas fa-eye"></i>
                             </a>
                             @if(in_array($history->status, ['pending', 'processing']))
-                            <form action="{{ route('history.cancel', $history->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Batalkan proses upload ini?');">
+                            <form action="{{ route('history.cancel', $history->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Cancel this upload process?');">
                                 @csrf
                                 <button type="submit" class="btn btn-sm btn-outline-danger">
                                     <i class="fas fa-stop"></i>
